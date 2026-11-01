@@ -114,6 +114,7 @@ input::placeholder,textarea::placeholder{color:var(--muted);opacity:.65}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
 .tile{background:var(--surface2);border-radius:12px;padding:10px 12px;min-width:0}
 .tile b{display:block;font-size:22px;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile .sub{display:block;color:var(--fg);font-weight:600;font-size:13px}
 .tile span{font-size:12.5px;color:var(--muted)}
 .tile.ok b{color:var(--ok)} .tile.bad b{color:var(--bad)} .tile.warn b{color:var(--warn)}
 .pill{display:inline-block;border-radius:99px;padding:2px 10px;font-size:12.5px;font-weight:600;background:var(--surface2)}
@@ -333,6 +334,8 @@ function rec(date,h,create){
   return S.days[date][h];
 }
 function trayN(){return num(S.settings.tray)||30}
+function trayParts(n){var T=trayN(),a=Math.abs(Math.round(n));return {t:Math.floor(a/T),e:a%T}}
+function trayText(n){var q=trayParts(n);return fmtN(q.t)+' طبق'+(q.e?' و '+fmtN(q.e)+' بيضة':'')}
 function calc(r){
   var good=(num(r.c1)+num(r.c2)+num(r.c3))*trayN(),x=num(r.dbl)+num(r.defect)+num(r.broken)+num(r.dead);
   return {c:good,x:x,tot:good+x,req:num(r.target),trays:num(r.c1)+num(r.c2)+num(r.c3)};
@@ -348,7 +351,7 @@ var fmtN=function(n){return Number(n).toLocaleString('en-US')};
 function sumRows(o,withReq){
   var left=o.req-o.tot,rows=[];
   rows.push(['البيض المطلوب',fmtN(o.req)],['الصالح (بيضة)',fmtN(o.c)],['المستبعد (بيضة)',fmtN(o.x)],['الإجمالي المجموع (بيضة)',fmtN(o.tot)]);
-  if(o.req>0)rows.push(['النسبة من المطلوب',(o.tot/o.req*100).toFixed(1).replace(/\.0$/,'')+'%'],[left>0?'متبقي للجمع':'زيادة عن المطلوب',fmtN(Math.abs(left))]);
+  if(o.req>0)rows.push(['النسبة من المطلوب',(o.tot/o.req*100).toFixed(1).replace(/\.0$/,'')+'%'],[left>0?'متبقي للجمع':'زيادة عن المطلوب',trayText(left)]);
   rows.push(['إجمالي الأطباق',fmtN(o.trays)],['نفوق ديوك',fmtN(o.mortM)],['نفوق دجاج',fmtN(o.mortF)],['إجمالي النفوق',fmtN(o.mort)],['فرز ديوك',fmtN(o.cullM)],['فرز دجاج',fmtN(o.cullF)],['العلف (كجم)',fmtN(o.feed)],['المياه (لتر)',fmtN(o.water)]);
   if(o.feed>0&&o.water>0)rows.push(['مياه : علف',(o.water/o.feed).toFixed(2)]);
   return rows;
@@ -379,9 +382,9 @@ function derivedDaily(){
   var T=trayN(),rs=rec(ui.date,sk()),c=calc(rs),hens=num(S.settings.houses[ui.house-1]['hens'+ui.side.toUpperCase()]);
   ['c1','c2','c3'].forEach(function(k){var e=$('[data-eg="'+k+'"]');if(e)e.textContent=has(rs[k])?('= '+fmtN(num(rs[k])*T)+' بيضة'):''});
   var tiles=[['الصالح (بيضة)',fmtN(c.c),'ok'],['المستبعد (بيضة)',fmtN(c.x),c.x>0?'warn':''],['الإجمالي المجموع (بيضة)',fmtN(c.tot),'ok'],['عدد الأطباق',fmtN(c.trays),'']];
-  if(c.req>0){var d=c.tot-c.req,pc=c.tot/c.req*100;tiles.push(['النسبة من المطلوب',pc.toFixed(1).replace(/\.0$/,'')+'%',d>=0?'ok':'warn']);tiles.push([d>=0?'زيادة عن المطلوب':'متبقي للجمع',fmtN(Math.abs(d)),d>=0?'ok':'warn'])}
+  if(c.req>0){var d=c.tot-c.req,pc=c.tot/c.req*100;tiles.push(['النسبة من المطلوب',pc.toFixed(1).replace(/\.0$/,'')+'%',d>=0?'ok':'warn']);var tp=trayParts(d);tiles.push([d>=0?'زيادة عن المطلوب (طبق)':'متبقي للجمع (طبق)',fmtN(tp.t),d>=0?'ok':'warn',tp.e?'و '+fmtN(tp.e)+' بيضة':''])}
   if(hens>0&&c.tot>0)tiles.push(['نسبة الإنتاج',(c.tot/hens*100).toFixed(1)+'%','']);
-  $('#dTiles').innerHTML=tiles.map(function(x){return '<div class="tile '+x[2]+'"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'}).join('');
+  $('#dTiles').innerHTML=tiles.map(function(x){return '<div class="tile '+x[2]+'"><b>'+x[1]+'</b><span>'+x[0]+(x[3]?' <strong class="sub">'+x[3]+'</strong>':'')+'</span></div>'}).join('');
   var hh=houseHas(ui.date,ui.house),rh=rec(ui.date,ui.house);
   var hrows=sumRows(houseSum(ui.date,ui.house));
   if(has(rh.tmax)||has(rh.tmin))hrows.push(['الحرارة العظمى / الصغرى',(has(rh.tmax)?rh.tmax:'-')+' / '+(has(rh.tmin)?rh.tmin:'-')]);
