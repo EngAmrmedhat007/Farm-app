@@ -162,7 +162,7 @@ nav.bottom button[aria-current="page"]{background:var(--accent-soft);color:var(-
   <div id="banner" aria-live="assertive"></div>
   <div id="panel" hidden></div>
   <main id="main"></main>
-  <footer class="sigf">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار 5</span></footer>
+  <footer class="sigf">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار 7</span></footer>
 </div>
 <nav class="bottom"><div id="nav"></div></nav>
 
@@ -320,13 +320,14 @@ var SIDE_SECTIONS=[
  {title:'المستبعدات من البيض (بالبيضة)',cols:4,hint:'تتسجل بالبيضة الواحدة، وبتتضاف على الصالح للوصول لإجمالي المجموع من الجانب.',f:[['dbl','دبل'],['defect','مشوه'],['broken','كسر'],['dead','هالك']]},
  {title:'النفوق',cols:2,f:[['mortM','نفوق ديوك'],['mortF','نفوق دجاج']]},
  {title:'الفرز',cols:2,f:[['cullM','فرز ديوك'],['cullF','فرز دجاج']]},
- {title:'العلف',cols:1,f:[['feed','العلف (كجم)']]}
+ {title:'العلف وحصة الفرخة',cols:2,hint:'العلف بالكيلو. لو عدد الفراخ فاضي بياخد العدد من الإعدادات، وتقدر تكتبه هنا لو العدد اتغير بسبب النفوق أو الفرز.',foot:'<div class="small" id="gramOut"></div>',f:[['feed','العلف (كجم)'],['hens','عدد الفراخ اليوم']]}
 ];
 var SHARED_SECTIONS=[
  {title:'درجة الحرارة (°م)',cols:2,step:'0.1',f:[['tmax','العظمى'],['tmin','الصغرى']]},
- {title:'المياه',cols:1,f:[['water','المياه (لتر)']]}
+ {title:'المياه',cols:1,f:[['water','المياه (لتر)']]},
+ {title:'العلف في السيلو',cols:2,step:'any',hint:'اكتب قراءة السيلو قبل نزول العلف وبعده، بنفس وحدة القراءة اللي بتستخدمها.',foot:'<div class="small" id="siloOut"></div>',f:[['siloBefore','قراءة السيلو قبل النزول'],['siloAfter','قراءة السيلو بعد النزول']]}
 ];
-var SHARED={tmax:1,tmin:1,water:1};
+var SHARED={tmax:1,tmin:1,water:1,siloBefore:1,siloAfter:1};
 function sk(){return ''+ui.house+ui.side}
 function rec(date,h,create){
   if(!S.days[date]){if(!create)return {};S.days[date]={}}
@@ -342,6 +343,9 @@ function calc(r){
 }
 function hasData(date,h){var r=rec(date,h);for(var k in r)if(has(r[k]))return true;return false}
 function houseHas(date,h){return hasData(date,h)||hasData(date,h+'c')||hasData(date,h+'f')}
+function sideHens(date,h,sd){var r=rec(date,h+sd);return has(r.hens)?num(r.hens):num(S.settings.houses[h-1]['hens'+sd.toUpperCase()])}
+function gramPer(r,hv){return hv>0&&num(r.feed)>0?(Math.round(num(r.feed)*1000/hv*10)/10):''}
+function feedHens(date,h){var f=0,n=0;['c','f'].forEach(function(sd){var r=rec(date,h+sd),hv=sideHens(date,h,sd);if(num(r.feed)>0&&hv>0){f+=num(r.feed);n+=hv}});return {f:f,h:n}}
 function houseSum(date,h){
   var o={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:num(rec(date,h).water)};
   ['c','f'].forEach(function(sd){var q=rec(date,h+sd),k=calc(q);o.c+=k.c;o.x+=k.x;o.tot+=k.tot;o.req+=k.req;o.trays+=k.trays;o.mortM+=num(q.mortM);o.mortF+=num(q.mortF);o.mort+=num(q.mortM)+num(q.mortF)+num(q.mort);o.cullM+=num(q.cullM);o.cullF+=num(q.cullF);o.feed+=num(q.feed)});
@@ -359,7 +363,7 @@ function sumRows(o,withReq){
 function kvHTML(rows){return rows.map(function(x){return '<div class="kv"><span>'+x[0]+'</span><b>'+x[1]+'</b></div>'}).join('')}
 function secHTML(s,r){
   return '<div class="card sec"><h3>'+s.title+'</h3>'+(s.hint?'<div class="small muted">'+s.hint+'</div>':'')+'<div class="g'+s.cols+'">'+s.f.map(function(f){
-    return '<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+(s.step||'1')+'" data-k="'+f[0]+'" value="'+esc(has(r[f[0]])?r[f[0]]:'')+'">'+(s.tray?'<small class="eg" data-eg="'+f[0]+'"></small>':'')+'</label>'}).join('')+'</div></div>';
+    return '<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+(s.step||'1')+'" data-k="'+f[0]+'" value="'+esc(has(r[f[0]])?r[f[0]]:'')+'">'+(s.tray?'<small class="eg" data-eg="'+f[0]+'"></small>':'')+'</label>'}).join('')+'</div>'+(s.foot||'')+'</div>';
 }
 function renderDaily(){
   var m=$('#main'),rs=rec(ui.date,sk()),rh=rec(ui.date,ui.house);
@@ -379,19 +383,27 @@ function renderDaily(){
   derivedDaily();
 }
 function derivedDaily(){
-  var T=trayN(),rs=rec(ui.date,sk()),c=calc(rs),hens=num(S.settings.houses[ui.house-1]['hens'+ui.side.toUpperCase()]);
+  var T=trayN(),rs=rec(ui.date,sk()),c=calc(rs),hens=sideHens(ui.date,ui.house,ui.side);
   ['c1','c2','c3'].forEach(function(k){var e=$('[data-eg="'+k+'"]');if(e)e.textContent=has(rs[k])?('= '+fmtN(num(rs[k])*T)+' بيضة'):''});
   var tiles=[['الصالح (بيضة)',fmtN(c.c),'ok'],['المستبعد (بيضة)',fmtN(c.x),c.x>0?'warn':''],['الإجمالي المجموع (بيضة)',fmtN(c.tot),'ok'],['عدد الأطباق',fmtN(c.trays),'']];
   if(c.req>0){var d=c.tot-c.req,pc=c.tot/c.req*100;tiles.push(['النسبة من المطلوب',pc.toFixed(1).replace(/\.0$/,'')+'%',d>=0?'ok':'warn']);var tp=trayParts(d);tiles.push([d>=0?'زيادة عن المطلوب (طبق)':'متبقي للجمع (طبق)',fmtN(tp.t),d>=0?'ok':'warn',tp.e?'و '+fmtN(tp.e)+' بيضة':''])}
   if(hens>0&&c.tot>0)tiles.push(['نسبة الإنتاج',(c.tot/hens*100).toFixed(1)+'%','']);
+  if(hens>0&&num(rs.feed)>0)tiles.push(['حصة الفرخة (جرام)',fmtN(gramPer(rs,hens)),'ok']);
+  var ge=$('#gramOut'),hin=$('[data-k="hens"]');
+  if(hin)hin.placeholder=num(S.settings.houses[ui.house-1]['hens'+ui.side.toUpperCase()])||'من الإعدادات';
+  if(ge){if(num(rs.feed)>0&&hens>0){ge.style.color='';ge.innerHTML='حصة الفرخة: <b>'+fmtN(gramPer(rs,hens))+' جرام</b> (على أساس '+fmtN(hens)+' فرخة)'}else if(num(rs.feed)>0){ge.style.color='var(--warn)';ge.textContent='اكتب عدد الفراخ هنا أو في الإعدادات عشان تتحسب الحصة'}else{ge.textContent=''}}
   $('#dTiles').innerHTML=tiles.map(function(x){return '<div class="tile '+x[2]+'"><b>'+x[1]+'</b><span>'+x[0]+(x[3]?' <strong class="sub">'+x[3]+'</strong>':'')+'</span></div>'}).join('');
   var hh=houseHas(ui.date,ui.house),rh=rec(ui.date,ui.house);
   var hrows=sumRows(houseSum(ui.date,ui.house));
+  var fh=feedHens(ui.date,ui.house);if(fh.h>0)hrows.push(['حصة الفرخة (جرام)',fmtN(Math.round(fh.f*1000/fh.h*10)/10)]);
   if(has(rh.tmax)||has(rh.tmin))hrows.push(['الحرارة العظمى / الصغرى',(has(rh.tmax)?rh.tmax:'-')+' / '+(has(rh.tmin)?rh.tmin:'-')]);
+  if(has(rh.siloBefore)||has(rh.siloAfter))hrows.push(['السيلو قبل / بعد النزول',(has(rh.siloBefore)?rh.siloBefore:'-')+' / '+(has(rh.siloAfter)?rh.siloAfter:'-')]);
+  var so=$('#siloOut');if(so){if(has(rh.siloBefore)&&has(rh.siloAfter)){var sd=num(rh.siloAfter)-num(rh.siloBefore);so.style.color=sd>=0?'':'var(--bad)';so.innerHTML=sd>=0?'العلف اللي نزل في السيلو: <b>'+fmtN(sd)+'</b>':'القراءة بعد النزول أقل من قبله، راجع الأرقام'}else{so.textContent=''}}
   $('#hTotals').innerHTML=hh?kvHTML(hrows):'<div class="empty">لسه مفيش بيانات للعنبر ده</div>';
   var sum={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:0},any=false;
   S.settings.houses.forEach(function(h){if(houseHas(ui.date,h.id))any=true;var o=houseSum(ui.date,h.id);for(var k in sum)sum[k]+=o[k]});
-  $('#dTotals').innerHTML=any?kvHTML(sumRows(sum)):'<div class="empty">لسه مفيش بيانات اتسجلت في اليوم ده</div>';
+  var frows=sumRows(sum),ff=0,fn=0;S.settings.houses.forEach(function(h){var q=feedHens(ui.date,h.id);ff+=q.f;fn+=q.h});if(fn>0)frows.push(['حصة الفرخة (جرام)',fmtN(Math.round(ff*1000/fn*10)/10)]);
+  $('#dTotals').innerHTML=any?kvHTML(frows):'<div class="empty">لسه مفيش بيانات اتسجلت في اليوم ده</div>';
 }
 
 /* ---------- evening ---------- */
@@ -500,13 +512,13 @@ function human(min){
 function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function dailyCSV(){
   var cols=['target','c1','c2','c3','dbl','defect','broken','dead','mortM','mortF','cullM','cullF','feed'];
-  var rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نفوق ديوك,نفوق دجاج,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر'];
+  var rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نفوق ديوك,نفوق دجاج,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر,سيلو قبل,سيلو بعد,عدد الفراخ,جرام علف للفرخة'];
   Object.keys(S.days).sort().forEach(function(d){S.settings.houses.forEach(function(H){
     SIDES.forEach(function(sd){
       if(!hasData(d,H.id+sd[0]))return;var r=rec(d,H.id+sd[0]),k=calc(r);
-      rows.push([d,hname(H.id),sd[1]].concat(cols.map(function(c){return r[c]})).concat([k.c,k.tot,'','','']).map(csvCell).join(','));
+      rows.push([d,hname(H.id),sd[1]].concat(cols.map(function(c){return r[c]})).concat([k.c,k.tot,'','','','','',sideHens(d,H.id,sd[0]),gramPer(r,sideHens(d,H.id,sd[0]))]).map(csvCell).join(','));
     });
-    if(hasData(d,H.id)){var q=rec(d,H.id);rows.push([d,hname(H.id),'العنبر كله','','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water].map(csvCell).join(','))}
+    if(hasData(d,H.id)){var q=rec(d,H.id);rows.push([d,hname(H.id),'العنبر كله','','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water,q.siloBefore,q.siloAfter,'',''].map(csvCell).join(','))}
   })});
   return rows.join('\n');
 }
@@ -550,7 +562,7 @@ function renderSet(){
     '<h3>جدول المراوح حسب الحرارة</h3><div class="alert warn"><p class="small">الأرقام دي مبدئية للتجربة. عدّلها حسب برنامج التهوية المعتمد في الشركة وتعليمات المسؤول.</p></div>'+st+'</div>'+
    '<div class="card sec"><h2>التذكيرات الدورية</h2>'+rm+'<div><button class="btn" id="rmAdd">+ تذكير جديد</button></div></div>'+
    '<div class="card sec"><h2>الصوت والشاشة</h2><label class="bar"><input type="checkbox" id="snd" '+(s.sound?'checked':'')+' style="width:22px;height:22px"> <span>صوت واهتزاز مع التنبيه</span></label>'+
-   '<div class="bar"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار 5 (بياناتك مش بتتمسح)</span></div>'+
+   '<div class="bar"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار 7 (بياناتك مش بتتمسح)</span></div>'+
    '<div class="bar"><button class="btn" id="notif">تفعيل إشعارات الموبايل</button><span class="small muted" id="notifMsg"></span></div>'+
    '<div class="bar"><button class="btn" id="wake">إبقاء الشاشة شغالة</button><span class="small muted" id="wakeMsg"></span></div>'+
    '<div class="alert info"><p class="small">التنبيهات بتشتغل والتطبيق مفتوح على الشاشة. لو اتقفل أو الموبايل نام، التذكير اللي فات بيظهر أول ما تفتحه ثاني.</p></div></div>';
