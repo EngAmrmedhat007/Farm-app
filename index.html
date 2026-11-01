@@ -317,7 +317,8 @@ var sname=function(x){return x==='c'?'التبريد':'المراوح'};
 var SIDE_SECTIONS=[
  {title:'جمعات البيض (بالطبق)',cols:3,tray:true,hint:'الجمعات الثلاث كلها بيض صالح. اكتب عدد الأطباق في كل جمعة (الطبق = 30 بيضة) والتحويل لعدد البيض تلقائي.',f:[['c1','الجمعة الأولى'],['c2','الجمعة الثانية'],['c3','الجمعة الثالثة']]},
  {title:'المستبعدات من البيض (بالبيضة)',cols:4,hint:'تتسجل بالبيضة الواحدة، وبتتضاف على الصالح للوصول لإجمالي المجموع من الجانب.',f:[['dbl','دبل'],['defect','مشوه'],['broken','كسر'],['dead','هالك']]},
- {title:'النفوق والفرز',cols:3,f:[['mort','نافق'],['cullM','فرز ديوك'],['cullF','فرز دجاج']]},
+ {title:'النفوق',cols:2,f:[['mortM','نفوق ديوك'],['mortF','نفوق دجاج']]},
+ {title:'الفرز',cols:2,f:[['cullM','فرز ديوك'],['cullF','فرز دجاج']]},
  {title:'العلف',cols:1,f:[['feed','العلف (كجم)']]}
 ];
 var SHARED_SECTIONS=[
@@ -339,8 +340,8 @@ function calc(r){
 function hasData(date,h){var r=rec(date,h);for(var k in r)if(has(r[k]))return true;return false}
 function houseHas(date,h){return hasData(date,h)||hasData(date,h+'c')||hasData(date,h+'f')}
 function houseSum(date,h){
-  var o={c:0,x:0,tot:0,req:0,trays:0,mort:0,cullM:0,cullF:0,feed:0,water:num(rec(date,h).water)};
-  ['c','f'].forEach(function(sd){var q=rec(date,h+sd),k=calc(q);o.c+=k.c;o.x+=k.x;o.tot+=k.tot;o.req+=k.req;o.trays+=k.trays;o.mort+=num(q.mort);o.cullM+=num(q.cullM);o.cullF+=num(q.cullF);o.feed+=num(q.feed)});
+  var o={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:num(rec(date,h).water)};
+  ['c','f'].forEach(function(sd){var q=rec(date,h+sd),k=calc(q);o.c+=k.c;o.x+=k.x;o.tot+=k.tot;o.req+=k.req;o.trays+=k.trays;o.mortM+=num(q.mortM);o.mortF+=num(q.mortF);o.mort+=num(q.mortM)+num(q.mortF)+num(q.mort);o.cullM+=num(q.cullM);o.cullF+=num(q.cullF);o.feed+=num(q.feed)});
   return o;
 }
 var fmtN=function(n){return Number(n).toLocaleString('en-US')};
@@ -348,7 +349,7 @@ function sumRows(o,withReq){
   var left=o.req-o.tot,rows=[];
   rows.push(['البيض المطلوب',fmtN(o.req)],['الصالح (بيضة)',fmtN(o.c)],['المستبعد (بيضة)',fmtN(o.x)],['الإجمالي المجموع (بيضة)',fmtN(o.tot)]);
   if(o.req>0)rows.push(['النسبة من المطلوب',(o.tot/o.req*100).toFixed(1).replace(/\.0$/,'')+'%'],[left>0?'متبقي للجمع':'زيادة عن المطلوب',fmtN(Math.abs(left))]);
-  rows.push(['إجمالي الأطباق',fmtN(o.trays)],['إجمالي النفوق',fmtN(o.mort)],['فرز ديوك',fmtN(o.cullM)],['فرز دجاج',fmtN(o.cullF)],['العلف (كجم)',fmtN(o.feed)],['المياه (لتر)',fmtN(o.water)]);
+  rows.push(['إجمالي الأطباق',fmtN(o.trays)],['نفوق ديوك',fmtN(o.mortM)],['نفوق دجاج',fmtN(o.mortF)],['إجمالي النفوق',fmtN(o.mort)],['فرز ديوك',fmtN(o.cullM)],['فرز دجاج',fmtN(o.cullF)],['العلف (كجم)',fmtN(o.feed)],['المياه (لتر)',fmtN(o.water)]);
   if(o.feed>0&&o.water>0)rows.push(['مياه : علف',(o.water/o.feed).toFixed(2)]);
   return rows;
 }
@@ -385,7 +386,7 @@ function derivedDaily(){
   var hrows=sumRows(houseSum(ui.date,ui.house));
   if(has(rh.tmax)||has(rh.tmin))hrows.push(['الحرارة العظمى / الصغرى',(has(rh.tmax)?rh.tmax:'-')+' / '+(has(rh.tmin)?rh.tmin:'-')]);
   $('#hTotals').innerHTML=hh?kvHTML(hrows):'<div class="empty">لسه مفيش بيانات للعنبر ده</div>';
-  var sum={c:0,x:0,tot:0,req:0,trays:0,mort:0,cullM:0,cullF:0,feed:0,water:0},any=false;
+  var sum={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:0},any=false;
   S.settings.houses.forEach(function(h){if(houseHas(ui.date,h.id))any=true;var o=houseSum(ui.date,h.id);for(var k in sum)sum[k]+=o[k]});
   $('#dTotals').innerHTML=any?kvHTML(sumRows(sum)):'<div class="empty">لسه مفيش بيانات اتسجلت في اليوم ده</div>';
 }
@@ -495,14 +496,14 @@ function human(min){
 /* ---------- log / backup ---------- */
 function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
 function dailyCSV(){
-  var cols=['target','c1','c2','c3','dbl','defect','broken','dead','mort','cullM','cullF','feed'];
-  var rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نافق,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر'];
+  var cols=['target','c1','c2','c3','dbl','defect','broken','dead','mortM','mortF','cullM','cullF','feed'];
+  var rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نفوق ديوك,نفوق دجاج,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر'];
   Object.keys(S.days).sort().forEach(function(d){S.settings.houses.forEach(function(H){
     SIDES.forEach(function(sd){
       if(!hasData(d,H.id+sd[0]))return;var r=rec(d,H.id+sd[0]),k=calc(r);
       rows.push([d,hname(H.id),sd[1]].concat(cols.map(function(c){return r[c]})).concat([k.c,k.tot,'','','']).map(csvCell).join(','));
     });
-    if(hasData(d,H.id)){var q=rec(d,H.id);rows.push([d,hname(H.id),'العنبر كله','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water].map(csvCell).join(','))}
+    if(hasData(d,H.id)){var q=rec(d,H.id);rows.push([d,hname(H.id),'العنبر كله','','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water].map(csvCell).join(','))}
   })});
   return rows.join('\n');
 }
