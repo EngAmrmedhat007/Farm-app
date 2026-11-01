@@ -162,7 +162,7 @@ nav.bottom button[aria-current="page"]{background:var(--accent-soft);color:var(-
   <div id="banner" aria-live="assertive"></div>
   <div id="panel" hidden></div>
   <main id="main"></main>
-  <footer class="sigf">إعداد وتصميم: <b>م/ عمرو مدحت</b></footer>
+  <footer class="sigf">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار 5</span></footer>
 </div>
 <nav class="bottom"><div id="nav"></div></nav>
 
@@ -550,6 +550,7 @@ function renderSet(){
     '<h3>جدول المراوح حسب الحرارة</h3><div class="alert warn"><p class="small">الأرقام دي مبدئية للتجربة. عدّلها حسب برنامج التهوية المعتمد في الشركة وتعليمات المسؤول.</p></div>'+st+'</div>'+
    '<div class="card sec"><h2>التذكيرات الدورية</h2>'+rm+'<div><button class="btn" id="rmAdd">+ تذكير جديد</button></div></div>'+
    '<div class="card sec"><h2>الصوت والشاشة</h2><label class="bar"><input type="checkbox" id="snd" '+(s.sound?'checked':'')+' style="width:22px;height:22px"> <span>صوت واهتزاز مع التنبيه</span></label>'+
+   '<div class="bar"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار 5 (بياناتك مش بتتمسح)</span></div>'+
    '<div class="bar"><button class="btn" id="notif">تفعيل إشعارات الموبايل</button><span class="small muted" id="notifMsg"></span></div>'+
    '<div class="bar"><button class="btn" id="wake">إبقاء الشاشة شغالة</button><span class="small muted" id="wakeMsg"></span></div>'+
    '<div class="alert info"><p class="small">التنبيهات بتشتغل والتطبيق مفتوح على الشاشة. لو اتقفل أو الموبايل نام، التذكير اللي فات بيظهر أول ما تفتحه ثاني.</p></div></div>';
@@ -634,6 +635,11 @@ document.addEventListener('click',function(e){
   if(d.copy){var m=$('#cpmsg');copyText(d.copy==='json'?JSON.stringify(S):d.copy==='day'?dailyCSV():eveCSV(),m);return}
   if(t.id==='rmAdd'){S.settings.reminders.push({id:uid(),label:'تذكير جديد',times:['12:00'],on:true});persist();renderSet();return}
   if(t.id==='wake'){toggleWake();return}
+  if(t.id==='upd'){var um=$('#updMsg');um.textContent='جاري التحديث...';
+    var jobs=[];
+    try{if(navigator.serviceWorker)jobs.push(navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}))}catch(e){}
+    try{if(window.caches)jobs.push(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}))}catch(e){}
+    Promise.all(jobs).then(function(){location.replace(location.pathname+'?u='+Date.now())},function(){location.replace(location.pathname+'?u='+Date.now())});return}
   if(t.id==='notif'){var nm=$('#notifMsg');try{if(!('Notification' in window)){nm.textContent='المتصفح لا يدعم الإشعارات';return}Notification.requestPermission().then(function(p){nm.textContent=p==='granted'?'تم التفعيل ✓':'لم يتم السماح بالإشعارات'})}catch(e){nm.textContent='غير متاح'}return}
 });
 document.addEventListener('input',function(e){
@@ -675,7 +681,11 @@ setInterval(tick,15000);
 })();
 </script>
 <script>
-if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})})}
+if('serviceWorker' in navigator){
+  var hadCtl=!!navigator.serviceWorker.controller,reloaded=false;
+  navigator.serviceWorker.addEventListener('controllerchange',function(){if(hadCtl&&!reloaded){reloaded=true;location.reload()}});
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(function(r){try{r.update()}catch(e){}}).catch(function(){})});
+}
 </script>
 </body>
 </html>
