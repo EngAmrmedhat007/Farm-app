@@ -160,7 +160,8 @@ nav.dock button em{position:absolute;top:2px;inset-inline-end:14px;background:va
 .hrs button[aria-pressed="true"]{background:var(--brand);color:var(--brand-fg);border-color:var(--brand)}
 .hrs button i{position:absolute;top:5px;inset-inline-end:7px;width:8px;height:8px;border-radius:50%;background:var(--gold)}
 .curt{font-size:13px;font-weight:600;color:var(--info);min-height:19px}
-.hrow2{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}
+.hrow2{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;align-items:end}
+.sw{display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:12.5px;cursor:pointer}
 .hrow2 label.f>span{font-size:11.5px}
 .hrow2 input{padding:6px 4px;min-height:44px;font-size:15px}
 .hh{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:14px;padding:10px;background:var(--surface);margin-top:10px}
@@ -206,7 +207,7 @@ ul.hl{margin:0;padding-inline-start:20px;display:flex;flex-direction:column;gap:
 <script>
 (function(){
 'use strict';
-const KEY='dakahlia_farm_v1', VER=9;
+const KEY='dakahlia_farm_v1', VER=10;
 const HOURS=[18,19,20,21,22,23,0,1,2,3,4,5,6];
 const pad=n=>(n<10?'0':'')+n;
 const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -226,7 +227,7 @@ const fmtDate=s=>{const d=parseD(s);return WD[d.getDay()]+' '+d.getDate()+'/'+(d
 const today=()=>isoDate(new Date());
 
 /* ---------- state ---------- */
-const mkHouses=()=>{const a=[];for(let i=1;i<=8;i++)a.push({id:i,name:'عنبر '+i,hensC:'',hensF:'',fans:''});return a};
+const mkHouses=()=>{const a=[];for(let i=1;i<=8;i++)a.push({id:i,name:'عنبر '+i,hensC:'',roosC:'',hensF:'',roosF:'',fans:''});return a};
 const DEFTASKS=()=>[
  {id:'t1',label:'تفقد الفرز والنافق',shift:'day',perHouse:true,times:[],on:true},
  {id:'t2',label:'وجود علف في سير العلف (ذكور)',shift:'day',perHouse:true,times:[],on:true},
@@ -240,7 +241,7 @@ const DEFTASKS=()=>[
  {id:'t10',label:'نزول العلف مع مهندس التعليف',shift:'eve',perHouse:false,times:[],on:true}];
 const DEF=()=>({settings:{houses:mkHouses(),hot:30,tray:30,sound:true,
   steps:[{t:26,p:25},{t:28,p:50},{t:30,p:75},{t:32,p:100}],
-  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,
+  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,hegM:'',hegF:'',hegSource:'all',
   tasks:DEFTASKS(),engineers:[],rot:{date:'',idx:0}},
   days:{},eve:{},treat:[],alerts:[],fired:{},todo:{},feedEng:{},issues:[],handover:{}});
 let S,storageOK=true;
@@ -253,8 +254,8 @@ function load(){
     if(raw.settings)for(const k in raw.settings){if(raw.settings[k]!==undefined&&raw.settings[k]!==null)S.settings[k]=raw.settings[k]}
   }
   const H=S.settings.houses;
-  while(H.length<8)H.push({id:H.length+1,name:'عنبر '+(H.length+1),hensC:'',hensF:'',fans:''});
-  H.forEach(h=>{if(h.hensC===undefined)h.hensC='';if(h.hensF===undefined)h.hensF=''});
+  while(H.length<8)H.push({id:H.length+1,name:'عنبر '+(H.length+1),hensC:'',roosC:'',hensF:'',roosF:'',fans:''});
+  H.forEach(h=>{['hensC','hensF','roosC','roosF'].forEach(k=>{if(h[k]===undefined)h[k]=''})});
   if(!Array.isArray(S.issues))S.issues=[];
   if(!S.handover||typeof S.handover!=='object')S.handover={};
   if(!Array.isArray(S.settings.tasks))S.settings.tasks=DEFTASKS();
@@ -285,12 +286,28 @@ function calc(r){
   return {c:good,x:x,tot:good+x,req:num(r.target),trays:num(r.c1)+num(r.c2)+num(r.c3)};
 }
 function hasData(date,key){const r=rec(date,key);for(const k in r)if(has(r[k]))return true;return false}
-const houseHas=(date,h)=>hasData(date,h)||hasData(date,h+'c')||hasData(date,h+'f');
-function sideHensInfo(date,h,sd){
-  const r=rec(date,h+sd);if(has(r.hens))return {n:num(r.hens),src:'today'};
-  const prev=Object.keys(S.days).filter(d=>d<date).sort().reverse();
-  for(let i=0;i<prev.length;i++){const q=S.days[prev[i]][h+sd];if(q&&has(q.hens))return {n:num(q.hens),src:'prev'}}
-  return {n:num(S.settings.houses[h-1]['hens'+sd.toUpperCase()]),src:'set'};
+const houseHas=(date,h)=>hasData(date,h)||hasData(date,h+'c')||hasData(date,h+'f')||(+h===8&&hasData(date,'8h'));
+function countSeries(date,key,field,base,delta){
+  let cur=base,anch=false;
+  Object.keys(S.days).filter(d=>d<date).sort().forEach(d=>{const r=(S.days[d]||{})[key];if(r&&has(r[field])){cur=num(r[field]);anch=true}const x=delta(d);if(x){cur+=x;anch=true}});
+  const r=rec(date,key);if(has(r[field]))return {n:num(r[field]),src:'today'};
+  return {n:Math.max(0,cur),src:anch?'calc':'set'};
+}
+const dayRec=(d,k)=>(S.days[d]||{})[k]||{};
+function sideBirds(date,h,sd,kind){
+  const F=kind==='F',base=num(S.settings.houses[h-1][(F?'hens':'roos')+sd.toUpperCase()]);
+  return countSeries(date,h+sd,F?'hens':'roos',base,d=>{const r=dayRec(d,h+sd);return -(num(r[F?'cullF':'cullM'])+num(r[F?'mortF':'mortM']))});
+}
+const sideHensInfo=(date,h,sd)=>sideBirds(date,h,sd,'F');
+const hegSources=()=>S.settings.hegSource==='h8'?[8]:[1,2,3,4,5,6,7,8];
+function hegIn(d,kind){let n=0;hegSources().forEach(h=>['c','f'].forEach(sd=>{n+=num(dayRec(d,h+sd)[kind==='F'?'cullF':'cullM'])}));return n}
+function hegBalance(date,kind){
+  const F=kind==='F';
+  return countSeries(date,'8h',F?'hens':'roos',num(S.settings[F?'hegF':'hegM']),d=>hegIn(d,kind)-num(dayRec(d,'8h')[F?'mortF':'mortM']));
+}
+function hegDay(date){
+  const o={};['M','F'].forEach(k=>{const b=hegBalance(date,k),inn=hegIn(date,k),m=num(rec(date,'8h')['mort'+k]);o[k]={open:b.n,src:b.src,inn:inn,mort:m,end:Math.max(0,b.n+inn-m)}});
+  return o;
 }
 const sideHens=(date,h,sd)=>sideHensInfo(date,h,sd).n;
 const gramPer=(r,hv)=>hv>0&&num(r.feed)>0?Math.round(num(r.feed)*1000/hv*10)/10:'';
@@ -299,6 +316,7 @@ function houseSum(date,h){
   const o={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:num(rec(date,h).water)};
   ['c','f'].forEach(sd=>{const q=rec(date,h+sd),k=calc(q);o.c+=k.c;o.x+=k.x;o.tot+=k.tot;o.req+=k.req;o.trays+=k.trays;
     o.mortM+=num(q.mortM);o.mortF+=num(q.mortF);o.mort+=num(q.mortM)+num(q.mortF)+num(q.mort);o.cullM+=num(q.cullM);o.cullF+=num(q.cullF);o.feed+=num(q.feed)});
+  if(+h===8){const q=rec(date,'8h');o.mortM+=num(q.mortM);o.mortF+=num(q.mortF);o.mort+=num(q.mortM)+num(q.mortF)}
   return o;
 }
 function farmSum(date){const s={c:0,x:0,tot:0,req:0,trays:0,mort:0,mortM:0,mortF:0,cullM:0,cullF:0,feed:0,water:0};for(let h=1;h<=8;h++){const o=houseSum(date,h);for(const k in s)s[k]+=o[k]}return s}
@@ -322,12 +340,12 @@ function eveRec(date,hour,h,create){
   if(!S.eve[date][k][h]){if(!create)return {};S.eve[date][k][h]={}}
   return S.eve[date][k][h];
 }
-const evFilled=r=>has(r.tin)||has(r.tout)||has(r.fans)||has(r.hum);
+const evFilled=r=>has(r.tin)||has(r.tout)||has(r.fans)||has(r.hum)||has(r.heaters)||has(r.htr);
 const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null;
 function houseEve(h,date){
-  const T=[],O=[],F=[],M=[];let n=0;
-  HOURS.forEach(x=>{const r=eveRec(date,x,h);if(evFilled(r))n++;if(has(r.tin))T.push(num(r.tin));if(has(r.tout))O.push(num(r.tout));if(has(r.fans))F.push(num(r.fans));if(has(r.hum))M.push(num(r.hum))});
-  return {avgT:avg(T),minT:T.length?Math.min.apply(null,T):null,maxT:T.length?Math.max.apply(null,T):null,outT:avg(O),fans:F.length?Math.max.apply(null,F):null,hum:avg(M),n:n};
+  const T=[],O=[],F=[],M=[],HT=[];let n=0,hon=0;
+  HOURS.forEach(x=>{const r=eveRec(date,x,h);if(evFilled(r))n++;if(has(r.tin))T.push(num(r.tin));if(has(r.tout))O.push(num(r.tout));if(has(r.fans))F.push(num(r.fans));if(has(r.hum))M.push(num(r.hum));if(has(r.heaters))HT.push(num(r.heaters));if(r.htr==='1'||num(r.heaters)>0)hon++});
+  return {avgT:avg(T),minT:T.length?Math.min.apply(null,T):null,maxT:T.length?Math.max.apply(null,T):null,outT:avg(O),fans:F.length?Math.max.apply(null,F):null,hum:avg(M),n:n,heat:HT.length?Math.max.apply(null,HT):null,heatHrs:hon};
 }
 function eveDay(date){
   const L=[];for(let h=1;h<=8;h++)L.push(houseEve(h,date));
@@ -438,6 +456,7 @@ function checkEve(h,hour,skipCur){
     else if(pick)pushAlert('heat-'+tag,hn+': الحرارة '+t+'°. '+adv+'.','warn');
     if(need>0&&has(r.fans)&&num(r.fans)<need)pushAlert('fan-'+tag+'-'+r.fans,hn+': شغال '+r.fans+' مروحة والمطلوب نحو '+need+' من '+total+' عند حرارة '+t+'°.','bad');
   }
+  if(has(r.tin)&&num(r.tin)>=num(S.settings.hot)&&(r.htr==='1'||num(r.heaters)>0))pushAlert('htr-'+tag,hn+': الهياتر شغالة والحرارة '+r.tin+'° مرتفعة، راجع الهياتر.','bad');
   if(!skipCur&&has(r.fans)&&num(r.fans)>0)pushAlert('cur-'+tag+'-'+r.fans,hn+': '+r.fans+' مراوح شغالة، اضبط الستائر على '+curtainFor(num(r.fans)).cm+' سم.','info');
 }
 function checkDayHeat(h,v){
@@ -521,8 +540,13 @@ const SIDE_SECTIONS=[
  {title:'جمعات البيض (بالطبق)',cols:3,tray:true,hint:'الجمعات الثلاث كلها بيض صالح. اكتب عدد الأطباق (الطبق = 30 بيضة) والتحويل تلقائي.',f:[['c1','الجمعة الأولى'],['c2','الجمعة الثانية'],['c3','الجمعة الثالثة']]},
  {title:'المستبعدات من البيض (بالبيضة)',cols:4,hint:'تتسجل بالبيضة، وبتتضاف على الصالح للوصول لإجمالي المجموع من الجانب.',f:[['dbl','دبل'],['defect','مشوه'],['broken','كسر'],['dead','هالك']]},
  {title:'النفوق',cols:2,f:[['mortM','نفوق ديوك'],['mortF','نفوق دجاج']]},
- {title:'الفرز',cols:2,f:[['cullM','فرز ديوك'],['cullF','فرز دجاج']]},
- {title:'العلف وحصة الفرخة',cols:2,hint:'العلف بالكيلو. عدد الفراخ بيتاخد من آخر يوم سجلته أو من الإعدادات، وتقدر تغيره هنا.',foot:'<div class="small" id="gramOut"></div>',f:[['feed','العلف (كجم)'],['hens','عدد الفراخ اليوم']]}
+ {title:'الفرز',cols:2,hint:'الفرز بيتخصم من عدد الطيور في الجانب وبيتضاف تلقائي لجانب الحجازة في عنبر 8.',f:[['cullM','فرز ديوك'],['cullF','فرز دجاج']]},
+ {title:'عدد الطيور في الجانب',cols:2,hint:'بيتحسب تلقائي من الإعدادات بعد خصم الفرز والنفوق. اكتب رقم لو عايز تصححه.',foot:'<div class="small" id="birdsOut"></div>',f:[['hens','عدد الفراخ'],['roos','عدد الديوك']]},
+ {title:'العلف وحصة الفرخة',cols:1,foot:'<div class="small" id="gramOut"></div>',f:[['feed','العلف (كجم)']]}
+];
+const HEG_SECTIONS=[
+ {title:'النفوق في الحجازة',cols:2,f:[['mortM','نفوق ديوك'],['mortF','نفوق دجاج']]},
+ {title:'تصحيح عدد الطيور (اختياري)',cols:2,hint:'الرصيد بيتحسب تلقائي. اكتب رقم هنا لو عايز تصحح رصيد أول اليوم.',f:[['hens','فراخ أول اليوم'],['roos','ديوك أول اليوم']]}
 ];
 const SHARED_SECTIONS=[
  {title:'درجة الحرارة (°م)',cols:2,step:'0.1',f:[['tmax','العظمى'],['tmin','الصغرى']]},
@@ -535,10 +559,32 @@ function secHTML(s,r){
   return '<div class="box"><h3>'+s.title+'</h3>'+(s.hint?'<div class="small muted">'+s.hint+'</div>':'')+'<div class="g'+s.cols+'">'+s.f.map(f=>
    '<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+(s.step||'1')+'" data-k="'+f[0]+'" value="'+esc(has(r[f[0]])?r[f[0]]:'')+'">'+(s.tray?'<small class="eg" data-eg="'+f[0]+'"></small>':'')+'</label>').join('')+'</div>'+(s.foot||'')+'</div>';
 }
+function hegSheetHTML(){
+  const rs=rec(ui.date,'8h');
+  return '<div class="sheet"><div class="shead"><button class="back" data-act="back">← رجوع</button><h2>'+esc(hname(8))+' · الحجازة</h2></div><div class="wrap">'+sideTabsHTML(8,'h')+
+   '<div class="saved" id="savedmsg" style="margin-top:8px"></div>'+
+   '<div class="box k"><h3>رصيد الحجازة</h3><div class="small muted">الفرز اليومي من الجوانب بيتضاف هنا تلقائي (ديك للديوك، فرخة للفراخ). مفيش بيض بيتجمع من الحجازة.</div><div class="tiles" id="hegTiles"></div><div id="hegIn" class="small" style="margin-top:6px"></div></div>'+
+   HEG_SECTIONS.map(x=>secHTML(x,rs)).join('')+'</div><div class="live num" id="live"></div></div>';
+}
+function refreshHeg(){
+  const d=hegDay(ui.date);
+  const t=(l,v,c)=>'<div class="tile '+(c||'')+'"><b>'+fmtN(v)+'</b><span>'+l+'</span></div>';
+  $('#hegTiles').innerHTML=t('ديوك أول اليوم',d.M.open)+t('فراخ أول اليوم',d.F.open)+t('ديوك داخلة من الفرز',d.M.inn,d.M.inn?'ok':'')+t('فراخ داخلة من الفرز',d.F.inn,d.F.inn?'ok':'')+t('نفوق ديوك',d.M.mort,d.M.mort?'warn':'')+t('نفوق فراخ',d.F.mort,d.F.mort?'warn':'')+t('ديوك آخر اليوم',d.M.end,'ok')+t('فراخ آخر اليوم',d.F.end,'ok');
+  const parts=[];hegSources().forEach(h=>{const m=['c','f'].reduce((a,sd)=>a+num(rec(ui.date,h+sd).cullM),0),f=['c','f'].reduce((a,sd)=>a+num(rec(ui.date,h+sd).cullF),0);if(m||f)parts.push(esc(hname(h))+': ديوك '+fmtN(m)+' / فراخ '+fmtN(f))});
+  $('#hegIn').innerHTML=parts.length?'<b>الداخل النهارده:</b> '+parts.join(' · '):'لسه مفيش فرز متسجل النهارده.';
+  $('#live').innerHTML='<div><b>'+fmtN(d.M.end)+'</b><span>ديوك</span></div><div><b>'+fmtN(d.F.end)+'</b><span>فراخ</span></div><div><b>'+fmtN(d.M.inn+d.F.inn)+'</b><span>داخل اليوم</span></div><div><b>'+fmtN(d.M.mort+d.F.mort)+'</b><span>نفوق</span></div>';
+  [['roos',d.M],['hens',d.F]].forEach(x=>{const e=$('[data-k="'+x[0]+'"]');if(e)e.placeholder=String(x[1].open)});
+}
+function sideTabsHTML(h,sd){
+  const b=(k,n)=>'<button data-side="'+k+'" aria-pressed="'+(sd===k)+'">'+n+(hasData(ui.date,h+k)?' ●':'')+'</button>';
+  return '<div class="tabs2" style="margin-top:14px">'+b('c','تبريد')+b('f','مراوح')+(+h===8?b('h','الحجازة'):'')+'</div>';
+}
 function daySheetHTML(){
+  if(ui.side==='h'&&ui.open!==8)ui.side='c';
+  if(ui.side==='h')return hegSheetHTML();
   const h=ui.open,sd=ui.side,rs=rec(ui.date,sk()),rh=rec(ui.date,String(h)),sn=sd==='c'?'التبريد':'المراوح';
   return '<div class="sheet"><div class="shead"><button class="back" data-act="back">← رجوع</button><h2>'+esc(hname(h))+' · نهاري</h2></div><div class="wrap">'+
-   '<div class="tabs2" style="margin-top:14px"><button data-side="c" aria-pressed="'+(sd==='c')+'">تبريد'+(hasData(ui.date,h+'c')?' ●':'')+'</button><button data-side="f" aria-pressed="'+(sd==='f')+'">مراوح'+(hasData(ui.date,h+'f')?' ●':'')+'</button></div>'+
+   sideTabsHTML(h,sd)+
    '<div class="saved" id="savedmsg" style="margin-top:8px"></div>'+
    '<div class="box k"><h3>المطلوب من جانب '+sn+'</h3><label class="f"><span>إجمالي البيض المطلوب</span><input type="number" inputmode="numeric" min="0" data-k="target" placeholder="مثال: 3000" value="'+esc(has(rs.target)?rs.target:'')+'"></label><div class="tiles" id="dTiles"></div></div>'+
    SIDE_SECTIONS.map(s=>secHTML(s,rs)).join('')+
@@ -548,6 +594,8 @@ function daySheetHTML(){
    '</div><div class="live num" id="live"></div></div>';
 }
 function refreshDay(){
+  if(ui.side==='h'&&ui.open!==8)ui.side='c';
+  if(ui.side==='h'){refreshHeg();return}
   const h=ui.open,sd=ui.side,T=trayN(),rs=rec(ui.date,sk()),rh=rec(ui.date,String(h)),c=calc(rs),hi=sideHensInfo(ui.date,h,sd),hens=hi.n;
   ['c1','c2','c3'].forEach(k=>{const e=$('[data-eg="'+k+'"]');if(e)e.textContent=has(rs[k])?'= '+fmtN(num(rs[k])*T)+' بيضة':''});
   const tiles=[['الصالح (بيضة)',fmtN(c.c),'ok'],['المستبعد (بيضة)',fmtN(c.x),c.x>0?'warn':''],['الإجمالي المجموع (بيضة)',fmtN(c.tot),'ok'],['عدد الأطباق',fmtN(c.trays),'']];
@@ -556,8 +604,10 @@ function refreshDay(){
   if(hens>0&&num(rs.feed)>0)tiles.push(['حصة الفرخة (جرام)',fmtN(gramPer(rs,hens)),'ok']);
   $('#dTiles').innerHTML=tiles.map(x=>'<div class="tile '+x[2]+'"><b>'+x[1]+'</b><span>'+x[0]+(x[3]?' <strong class="sub">'+x[3]+'</strong>':'')+'</span></div>').join('');
   const hin=$('[data-k="hens"]');if(hin)hin.placeholder=hens>0?String(hens):'—';
+  const bm=sideBirds(ui.date,h,sd,'M'),rin=$('[data-k="roos"]');if(rin)rin.placeholder=bm.n>0?String(bm.n):'—';
+  const bo=$('#birdsOut');if(bo){const w=x=>x.src==='calc'?'محسوب بعد خصم الفرز والنفوق':x.src==='set'?'من الإعدادات':'مكتوب يدوي';bo.innerHTML='فراخ: <b>'+fmtN(hens)+'</b> ('+w(hi)+') · ديوك: <b>'+fmtN(bm.n)+'</b> ('+w(bm)+')'}
   const ge=$('#gramOut');
-  if(ge){if(num(rs.feed)>0&&hens>0){ge.style.color='';ge.innerHTML='حصة الفرخة: <b>'+fmtN(gramPer(rs,hens))+' جرام</b> (على أساس '+fmtN(hens)+' فرخة'+(hi.src==='prev'?' من آخر يوم مسجل':hi.src==='set'?' من الإعدادات':'')+')'}
+  if(ge){if(num(rs.feed)>0&&hens>0){ge.style.color='';ge.innerHTML='حصة الفرخة: <b>'+fmtN(gramPer(rs,hens))+' جرام</b> (على أساس '+fmtN(hens)+' فرخة'+(hi.src==='calc'?' محسوبة بعد الخصم':hi.src==='set'?' من الإعدادات':'')+')'}
     else if(num(rs.feed)>0){ge.style.color='var(--warn)';ge.textContent='اكتب عدد الفراخ هنا أو في الإعدادات عشان تتحسب الحصة'}else ge.textContent=''}
   const so=$('#siloOut');
   if(so){if(has(rh.siloStart)&&has(rh.siloEnd)){const d=num(rh.siloStart)-num(rh.siloEnd);so.style.color='';so.innerHTML=d>=0?'الفرق (بداية − نهاية): <b>'+fmtN(d)+'</b>':'قراءة النهاية أعلى من البداية بـ <b>'+fmtN(-d)+'</b> (غالبًا نزل علف)'}else so.textContent=''}
@@ -573,11 +623,16 @@ function refreshDay(){
 }
 
 /* ---------- evening sheets ---------- */
-const eveFields=[['tin','حرارة داخل','0.1'],['tout','حرارة خارج','0.1'],['fans','مراوح','1'],['hum','رطوبة %','0.1']];
+const eveFields=[['tin','حرارة داخل','0.1'],['tout','حرارة خارج','0.1'],['hum','رطوبة %','0.1'],['fans','مراوح','1'],['heaters','هياتر','1'],['htr','🔥 هياتر شغالة','sw']];
+function evField(f,attr,house,hour,val){
+  const a=attr+'="'+f[0]+'"'+(house?' data-house="'+house+'" data-hour="'+hour+'"':'');
+  if(f[2]==='sw')return '<label class="sw"><input type="checkbox" '+a+(val==='1'?' checked':'')+'><span>'+f[1]+'</span></label>';
+  return '<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+f[2]+'" '+a+' value="'+esc(has(val)?val:'')+'"></label>';
+}
 function hourBox(h,hour){
   const r=eveRec(ui.date,hour,h);
   return '<div class="box" data-box="'+h+':'+hour+'"><div class="row spread"><h3 style="font-size:17px;color:var(--fg)">🕐 '+hLabel(hour)+'</h3><span class="pill" data-pill></span></div>'+
-   '<div class="g2">'+eveFields.map(f=>'<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+f[2]+'" data-ek="'+f[0]+'" data-house="'+h+'" data-hour="'+hour+'" value="'+esc(has(r[f[0]])?r[f[0]]:'')+'"></label>').join('')+'</div>'+
+   '<div class="hrow2">'+eveFields.map(f=>evField(f,'data-ek',h,hour,r[f[0]])).join('')+'</div>'+
    '<div class="curt" data-curt></div>'+
    '<input type="text" data-ek="note" data-house="'+h+'" data-hour="'+hour+'" placeholder="ملاحظة على العنبر في الساعة دي" value="'+esc(r.note||'')+'">'+
    '<button class="btn sm" data-confirm="applyone:'+h+':'+hour+'">تطبيق الأرقام دي على كل العنابر</button></div>';
@@ -594,19 +649,19 @@ function refreshEveSheet(){
     $('[data-pill]',b).textContent=evFilled(r)?'مسجل':'لم يسجل';$('[data-pill]',b).className='pill'+(evFilled(r)?' ok':'');
     const hot=has(r.tin)&&num(r.tin)>=num(S.settings.hot);if(hot){$('[data-pill]',b).textContent='حرارة مرتفعة';$('[data-pill]',b).className='pill bad'}
     $('[data-curt]',b).textContent=has(r.fans)?curtTxt(num(r.fans)):''});
-  $('#eSum').innerHTML=kvHTML([['متوسط الحرارة داخل',dg(e.avgT)],['أقل / أعلى حرارة',dg(e.minT)+' / '+dg(e.maxT)],['متوسط الخارجية',dg(e.outT)],['أقصى عدد مراوح',dash(e.fans)],['متوسط الرطوبة',pc(e.hum)],['الساعات المسجلة',e.n+' من '+HOURS.length]]);
+  $('#eSum').innerHTML=kvHTML([['متوسط الحرارة داخل',dg(e.avgT)],['أقل / أعلى حرارة',dg(e.minT)+' / '+dg(e.maxT)],['متوسط الخارجية',dg(e.outT)],['أقصى عدد مراوح',dash(e.fans)],['أقصى عدد هياتر / ساعات التشغيل',dash(e.heat)+' / '+e.heatHrs],['متوسط الرطوبة',pc(e.hum)],['الساعات المسجلة',e.n+' من '+HOURS.length]]);
   $('#live').innerHTML='<div><b>'+dg(e.avgT)+'</b><span>متوسط الحرارة</span></div><div><b>'+dg(e.outT)+'</b><span>خارجية</span></div><div><b>'+dash(e.fans)+'</b><span>أقصى مراوح</span></div><div><b>'+(e.hum===null?'—':Math.round(e.hum)+'%')+'</b><span>رطوبة</span></div>';
 }
 function hourViewHTML(){
   const hour=HOURS[ui.hour],a=ui.all[hour]||{};
   const chips=HOURS.map((x,i)=>{let any=false;for(let h=1;h<=8;h++)if(evFilled(eveRec(ui.date,x,h)))any=true;return '<button data-hr="'+i+'" aria-pressed="'+(i===ui.hour)+'">'+hLabel(x)+(any?'<i></i>':'')+'</button>'}).join('');
   const rows=[1,2,3,4,5,6,7,8].map(h=>{const r=eveRec(ui.date,hour,h);
-    return '<div class="hh" data-box="'+h+':'+hour+'"><header><b>'+esc(hname(h))+'</b><span class="pill" data-pill></span></header><div class="hrow2">'+eveFields.map(f=>'<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+f[2]+'" data-ek="'+f[0]+'" data-house="'+h+'" data-hour="'+hour+'" value="'+esc(has(r[f[0]])?r[f[0]]:'')+'"></label>').join('')+'</div><div class="curt" data-curt></div>'+
+    return '<div class="hh" data-box="'+h+':'+hour+'"><header><b>'+esc(hname(h))+'</b><span class="pill" data-pill></span></header><div class="hrow2">'+eveFields.map(f=>evField(f,'data-ek',h,hour,r[f[0]])).join('')+'</div><div class="curt" data-curt></div>'+
       '<input type="text" data-ek="note" data-house="'+h+'" data-hour="'+hour+'" placeholder="ملاحظة" value="'+esc(r.note||'')+'"></div>'}).join('');
   return '<div class="sheet"><div class="shead"><button class="back" data-act="back">← رجوع</button><h2>تسجيل الساعة · '+parseD(ui.date).getDate()+'/'+(parseD(ui.date).getMonth()+1)+'</h2></div><div class="wrap">'+
    '<div class="hrs" style="margin-top:14px">'+chips+'</div><div class="saved" id="savedmsg"></div>'+
    '<div class="box g"><h3>كل العنابر في الساعة '+hLabel(hour)+'</h3><div class="small muted">اكتب الأرقام مرة واحدة وطبقها على الـ8 عنابر، وبعدها عدّل أي عنبر مختلف.</div>'+
-   '<div class="hrow2">'+eveFields.map(f=>'<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+f[2]+'" data-ak="'+f[0]+'" value="'+esc(has(a[f[0]])?a[f[0]]:'')+'"></label>').join('')+'</div><div class="curt" id="allCurt"></div>'+
+   '<div class="hrow2">'+eveFields.map(f=>evField(f,'data-ak',0,0,a[f[0]])).join('')+'</div><div class="curt" id="allCurt"></div>'+
    '<label class="row"><input type="checkbox" id="onlyEmpty"><span class="small">الخانات الفاضية بس (من غير ما أغير اللي اتسجل)</span></label>'+
    '<button class="btn primary" data-confirm="applyall:'+hour+'">تطبيق على كل العنابر</button></div>'+rows+'</div></div>';
 }
@@ -728,19 +783,20 @@ function renderTList(){
 const csvCell=v=>{v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v};
 function dailyCSV(){
   const cols=['target','c1','c2','c3','dbl','defect','broken','dead','mortM','mortF','cullM','cullF','feed'];
-  const rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نفوق ديوك,نفوق دجاج,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر,سيلو بداية,سيلو نهاية,عدد الفراخ,جرام علف للفرخة'];
+  const rows=['التاريخ,العنبر,الجانب,المطلوب,جمعة1 طبق,جمعة2 طبق,جمعة3 طبق,دبل,مشوه,كسر,هالك,نفوق ديوك,نفوق دجاج,فرز ديوك,فرز دجاج,علف كجم,الصالح بيضة,الإجمالي بيضة,حرارة عظمى,حرارة صغرى,مياه لتر,سيلو بداية,سيلو نهاية,عدد الفراخ,جرام علف للفرخة,عدد الديوك'];
   Object.keys(S.days).sort().forEach(d=>{for(let h=1;h<=8;h++){
     [['c','تبريد'],['f','مراوح']].forEach(sd=>{
       if(!hasData(d,h+sd[0]))return;const r=rec(d,h+sd[0]),k=calc(r),hv=sideHens(d,h,sd[0]);
-      rows.push([d,hname(h),sd[1]].concat(cols.map(c=>r[c])).concat([k.c,k.tot,'','','','','',hv,gramPer(r,hv)]).map(csvCell).join(','));
+      rows.push([d,hname(h),sd[1]].concat(cols.map(c=>r[c])).concat([k.c,k.tot,'','','','','',hv,gramPer(r,hv),sideBirds(d,h,sd[0],'M').n]).map(csvCell).join(','));
     });
-    if(hasData(d,String(h))){const q=rec(d,String(h));rows.push([d,hname(h),'العنبر كله','','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water,q.siloStart,q.siloEnd,'',''].map(csvCell).join(','))}
+    if(h===8&&hasData(d,'8h')){const q=rec(d,'8h'),g=hegDay(d),a=new Array(26).fill('');a[0]=d;a[1]=hname(8);a[2]='الحجازة';a[11]=q.mortM||'';a[12]=q.mortF||'';a[23]=g.F.open;a[25]=g.M.open;rows.push(a.map(csvCell).join(','))}
+    if(hasData(d,String(h))){const q=rec(d,String(h));rows.push([d,hname(h),'العنبر كله','','','','','','','','','','','','','','','',q.tmax,q.tmin,q.water,q.siloStart,q.siloEnd,'','',''].map(csvCell).join(','))}
   }});
   return rows.join('\n');
 }
 function eveCSV(){
-  const rows=['التاريخ,الساعة,العنبر,رطوبة,حرارة داخل,حرارة خارج,مراوح,ملاحظات'];
-  Object.keys(S.eve).sort().forEach(d=>{Object.keys(S.eve[d]).sort().forEach(k=>{for(let h=1;h<=8;h++){const r=S.eve[d][k][h];if(!r)continue;rows.push([d,k+':00',hname(h),r.hum,r.tin,r.tout,r.fans,r.note].map(csvCell).join(','))}})});
+  const rows=['التاريخ,الساعة,العنبر,رطوبة,حرارة داخل,حرارة خارج,مراوح,هياتر شغالة,عدد الهياتر,ملاحظات'];
+  Object.keys(S.eve).sort().forEach(d=>{Object.keys(S.eve[d]).sort().forEach(k=>{for(let h=1;h<=8;h++){const r=S.eve[d][k][h];if(!r)continue;rows.push([d,k+':00',hname(h),r.hum,r.tin,r.tout,r.fans,(r.htr==='1'||num(r.heaters)>0)?'نعم':'',r.heaters,r.note].map(csvCell).join(','))}})});
   return rows.join('\n');
 }
 function reportText(date,shift){
@@ -748,7 +804,7 @@ function reportText(date,shift){
   if(shift==='eve'){
     const d=eveDay(date);
     L.push('متوسط الحرارة داخل: '+dash(d.avgT)+'°','الحرارة الخارجية: '+dash(d.outT)+'°','متوسط الرطوبة: '+(d.hum===null?'—':Math.round(d.hum)+'%'),'مهندس التعليف: '+(engOn(date)||'—'),'━━━━━━━━━━');
-    for(let h=1;h<=8;h++){const e=houseEve(h,date);if(!e.n)continue;L.push(hname(h)+': '+dash(e.avgT)+'° (من '+dash(e.minT)+' إلى '+dash(e.maxT)+') · رطوبة '+(e.hum===null?'—':Math.round(e.hum)+'%')+' · أقصى مراوح '+dash(e.fans))}
+    for(let h=1;h<=8;h++){const e=houseEve(h,date);if(!e.n)continue;L.push(hname(h)+': '+dash(e.avgT)+'° (من '+dash(e.minT)+' إلى '+dash(e.maxT)+') · رطوبة '+(e.hum===null?'—':Math.round(e.hum)+'%')+' · أقصى مراوح '+dash(e.fans)+(e.heatHrs?' · هياتر '+dash(e.heat)+' ('+e.heatHrs+' ساعة)':''))}
     const notes=[];HOURS.forEach(x=>{for(let h=1;h<=8;h++){const r=eveRec(date,x,h);if(r.note)notes.push(hLabel(x)+' · '+hname(h)+': '+r.note)}});
     if(notes.length){L.push('━━━━━━━━━━','ملاحظات:');notes.forEach(n=>L.push('• '+n))}
   }else{
@@ -756,6 +812,7 @@ function reportText(date,shift){
     L.push('المطلوب: '+fmtN(f.req)+' بيضة','الصالح: '+fmtN(f.c)+' | المستبعد: '+fmtN(f.x),'الإجمالي: '+fmtN(f.tot)+' بيضة ('+fmtN(f.trays)+' طبق) = '+pctTxt(f));
     if(f.req>f.tot)L.push('المتبقي للجمع: '+trayText(f.req-f.tot));
     L.push('النفوق: ديوك '+fmtN(f.mortM)+' / دجاج '+fmtN(f.mortF),'الفرز: ديوك '+fmtN(f.cullM)+' / دجاج '+fmtN(f.cullF),'العلف: '+fmtN(f.feed)+' كجم | المياه: '+fmtN(f.water)+' لتر','━━━━━━━━━━');
+    if(hasData(date,'8h')||f.cullM+f.cullF>0){const g=hegDay(date);L.push('الحجازة: ديوك '+fmtN(g.M.end)+' (داخل '+fmtN(g.M.inn)+') / فراخ '+fmtN(g.F.end)+' (داخل '+fmtN(g.F.inn)+') · نفوق '+fmtN(g.M.mort+g.F.mort))}
     for(let h=1;h<=8;h++){if(!houseHas(date,h))continue;const o=houseSum(date,h);L.push(hname(h)+': '+fmtN(o.trays)+' طبق · '+fmtN(o.tot)+' بيضة ('+pctTxt(o)+') · نفوق '+fmtN(o.mort)+' · فرز '+fmtN(o.cullM+o.cullF))}
   }
   return L.join('\n');
@@ -775,7 +832,7 @@ function logHTML(){
 /* ---------- settings ---------- */
 function setHTML(){
   const s=S.settings;
-  const hs=s.houses.map((H,i)=>'<div class="houseset"><label class="f"><span>اسم العنبر</span><input type="text" data-path="houses.'+i+'.name" value="'+esc(H.name)+'"></label><div class="g3"><label class="f"><span>دجاج التبريد</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensC" data-type="str" value="'+esc(H.hensC)+'"></label><label class="f"><span>دجاج المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensF" data-type="str" value="'+esc(H.hensF)+'"></label><label class="f"><span>عدد المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.fans" data-type="str" value="'+esc(H.fans)+'"></label></div></div>').join('');
+  const hs=s.houses.map((H,i)=>'<div class="houseset"><label class="f"><span>اسم العنبر</span><input type="text" data-path="houses.'+i+'.name" value="'+esc(H.name)+'"></label><div class="g2"><label class="f"><span>دجاج التبريد</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensC" data-type="str" value="'+esc(H.hensC)+'"></label><label class="f"><span>ديوك التبريد</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.roosC" data-type="str" value="'+esc(H.roosC)+'"></label><label class="f"><span>دجاج المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensF" data-type="str" value="'+esc(H.hensF)+'"></label><label class="f"><span>ديوك المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.roosF" data-type="str" value="'+esc(H.roosF)+'"></label></div><div class="g2" style="margin-top:8px"><label class="f"><span>عدد المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.fans" data-type="str" value="'+esc(H.fans)+'"></label></div></div>').join('');
   const st=s.steps.map((x,i)=>'<div class="g2" style="margin-top:8px"><label class="f"><span>لو الحرارة ≥ °</span><input type="number" inputmode="decimal" step="0.5" data-path="steps.'+i+'.t" data-type="str" value="'+esc(x.t)+'"></label><label class="f"><span>نسبة المراوح %</span><input type="number" inputmode="numeric" data-path="steps.'+i+'.p" data-type="str" value="'+esc(x.p)+'"></label></div>').join('');
   const cu=s.curtain.map((x,i)=>'<div class="g2" style="margin-top:8px"><label class="f"><span>عدد المراوح الشغالة</span><input type="number" inputmode="numeric" data-path="curtain.'+i+'.f" data-type="str" value="'+esc(x.f)+'"></label><label class="f"><span>فتحة الستائر (سم)</span><input type="number" inputmode="numeric" data-path="curtain.'+i+'.cm" data-type="str" value="'+esc(x.cm)+'"></label></div>').join('');
   const eg=s.engineers.map((n,i)=>'<div class="row" style="margin-top:8px"><input type="text" data-path="engineers.'+i+'" value="'+esc(n)+'" style="flex:1" aria-label="اسم المهندس"><button class="btn sm danger" data-confirm="deleng:'+i+'">حذف</button></div>').join('');
@@ -785,6 +842,7 @@ function setHTML(){
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🧑‍🔧 مهندسو التعليف</h3><div class="small muted" style="margin:4px 0">اكتب أسماء المهندسين اللي بيطلعوا مع النوبتجي. بيظهر اسم صاحب الدور في كارت المسائي.</div>'+eg+
    '<div class="row" style="margin-top:10px"><input type="text" id="engNew" placeholder="اسم مهندس جديد" style="flex:1"><button class="btn primary" data-act="addeng">إضافة</button></div>'+rotSel+wk+'</div>'+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">العنابر</h3><div class="small muted" style="margin:4px 0">عدد الدجاج بيتستخدم في نسبة الإنتاج وحصة الفرخة، وعدد المراوح في تنبيه التهوية.</div><label class="f" style="margin-top:8px"><span>عدد البيض في الطبق</span><input type="number" inputmode="numeric" data-path="tray" data-type="str" value="'+esc(s.tray)+'"></label>'+hs+'</div>'+
+   '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🐓 الحجازة (عنبر 8)</h3><div class="small muted" style="margin:4px 0">الأرصدة الافتتاحية، وبعدها بتتحدث تلقائي من الفرز اليومي.</div><div class="g2"><label class="f"><span>ديوك الحجازة</span><input type="number" inputmode="numeric" data-path="hegM" data-type="str" value="'+esc(s.hegM)+'"></label><label class="f"><span>فراخ الحجازة</span><input type="number" inputmode="numeric" data-path="hegF" data-type="str" value="'+esc(s.hegF)+'"></label></div><label class="f" style="margin-top:8px"><span>الفرز اللي بيدخل الحجازة من</span><select data-path="hegSource"><option value="all"'+(s.hegSource!=='h8'?' selected':'')+'>كل العنابر</option><option value="h8"'+(s.hegSource==='h8'?' selected':'')+'>عنبر 8 بس</option></select></label></div>'+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🪟 جدول الستائر</h3><div class="small muted" style="margin:4px 0">فتحة الستائر المطلوبة حسب عدد المراوح الشغالة. بيظهر تحت كل تسجيل مراوح وفي تنبيه ضبط الستائر.</div>'+cu+
    '<div class="row" style="margin-top:10px"><button class="btn sm" data-act="addcur">+ صف جديد</button><button class="btn sm danger" data-confirm="delcur">مسح آخر صف</button></div><label class="f" style="margin-top:10px"><span>سم لكل مروحة (للأعداد اللي مش في الجدول)</span><input type="number" inputmode="decimal" data-path="curtainPer" data-type="str" value="'+esc(s.curtainPer)+'"></label></div>'+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🌡️ تنبيه الحرارة والمراوح</h3><label class="f" style="margin-top:8px"><span>حد الحرارة العالية (°م) داخل العنبر</span><input type="number" inputmode="decimal" step="0.5" data-path="hot" data-type="str" value="'+esc(s.hot)+'"></label>'+
@@ -920,12 +978,13 @@ document.addEventListener('input',e=>{
     if(el.value==='')delete r[k];else r[k]=el.value;
     persistSoon();refreshDay();
   }else if(el.matches('[data-ek]')){
-    const h=+el.dataset.house,hour=+el.dataset.hour,r=eveRec(ui.date,hour,h,true),k=el.getAttribute('data-ek');
-    if(el.value==='')delete r[k];else r[k]=el.value;
+    const h=+el.dataset.house,hour=+el.dataset.hour,r=eveRec(ui.date,hour,h,true),k=el.getAttribute('data-ek'),v=el.type==='checkbox'?(el.checked?'1':''):el.value;
+    if(v==='')delete r[k];else r[k]=v;
+    if(k==='htr'&&el.checked&&!has(r.heaters)){const hi=$('[data-ek="heaters"][data-house="'+h+'"][data-hour="'+hour+'"]');if(hi)hi.focus()}
     persistSoon();ui.hourView?refreshHourView():refreshEveSheet();
   }else if(el.matches('[data-ak]')){
-    const hour=HOURS[ui.hour];ui.all[hour]=ui.all[hour]||{};
-    if(el.value==='')delete ui.all[hour][el.dataset.ak];else ui.all[hour][el.dataset.ak]=el.value;
+    const hour=HOURS[ui.hour];ui.all[hour]=ui.all[hour]||{};const av=el.type==='checkbox'?(el.checked?'1':''):el.value;
+    if(av==='')delete ui.all[hour][el.dataset.ak];else ui.all[hour][el.dataset.ak]=av;
     refreshHourView();
   }else if(el.matches('[data-path]')){
     const ty=el.dataset.type,path=el.dataset.path;
@@ -942,7 +1001,7 @@ document.addEventListener('change',e=>{
   if(el.matches('[data-path]')&&(el.tagName==='SELECT'||el.type==='checkbox')){
     const path=el.dataset.path;setPath(path,el.type==='checkbox'?el.checked:el.value);persist();
     if(/^tasks\./.test(path)||path==='sound')render();return}
-  if(el.matches('[data-ek="tin"],[data-ek="fans"]')){checkEve(+el.dataset.house,+el.dataset.hour);return}
+  if(el.matches('[data-ek="tin"],[data-ek="fans"],[data-ek="heaters"],[data-ek="htr"]')){checkEve(+el.dataset.house,+el.dataset.hour);return}
   if(el.matches('[data-k="tmax"]')&&ui.open)checkDayHeat(ui.open,el.value);
 });
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
