@@ -388,7 +388,8 @@ function load(){
   S.settings.workers.forEach(w=>{if(!w.id)w.id=uid();if(w.lvl!=='s'&&w.lvl!=='j')w.lvl='j';if(!w.off||typeof w.off!=='object')w.off={from:'',to:''}});
   if(!S.copied||typeof S.copied!=='object')S.copied={};
 }
-function persist(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOK=true}catch(e){storageOK=false}}
+function persist(){try{localStorage.setItem(KEY,JSON.stringify(S));storageOK=true}catch(e){storageOK=false}
+  try{if(window.FARM&&window.FARM.onSave)window.FARM.onSave()}catch(e){}}
 let saveT=null;
 function persistSoon(){clearTimeout(saveT);saveT=setTimeout(()=>{persist();flash()},250)}
 function flash(){const e=$('#savedmsg');if(e){e.textContent=storageOK?'تم الحفظ ✓':'التخزين غير متاح، انسخ نسخة احتياطية من السجل';e.style.color=storageOK?'':'var(--bad)'}}
@@ -1716,10 +1717,20 @@ document.addEventListener('change',e=>{
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(S.settings.pin&&hiddenAt&&Date.now()-hiddenAt>60000)showLock()});
 
+/* جسر المزامنة مع sync.js */
+(function(){let deferred=false;
+window.FARM={get:()=>S,
+  refresh(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}load();
+    const a=document.activeElement;
+    if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!a.closest('#syncLogin')&&!deferred){deferred=true;
+      a.addEventListener('blur',()=>setTimeout(()=>{deferred=false;render()},80),{once:true})}
+    else if(!deferred)render()}};
+})();
 render();flash();tick();sclock();if(S.settings.pin)showLock();
 setInterval(tick,15000);
 })();
 </script>
+<script type="module" src="sync.js"></script>
 <script>
 if('serviceWorker' in navigator){
   var hadCtl=!!navigator.serviceWorker.controller,reloaded=false;
