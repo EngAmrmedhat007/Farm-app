@@ -8,6 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -16,7 +18,7 @@ jobs:
           distribution: temurin
           java-version: 17
       - name: Unpack project
-        run: unzip -q farm-android.zip -d app
+        run: f=$(for x in farm-android*.zip; do echo "$(git log -1 --format=%ct -- "$x") $x"; done | sort -n | tail -1 | cut -d' ' -f2-) && echo "Using $f" && unzip -q "$f" -d app
       - name: Install and add Android
         working-directory: app
         run: npm install && npx cap add android && bash native/apply.sh && npx cap sync android
