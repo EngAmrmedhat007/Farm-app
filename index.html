@@ -137,7 +137,7 @@ small.eg{color:var(--brand);font-weight:700;min-height:18px;text-align:center;fo
 /* nav */
 nav.dock{position:fixed;bottom:0;left:0;right:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);
   padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px))}
-nav.dock #nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;max-width:640px;margin:0 auto}
+nav.dock #nav{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;max-width:640px;margin:0 auto}
 nav.dock button{border:0;background:transparent;min-height:54px;border-radius:14px;font-size:12px;font-weight:600;color:var(--muted);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px;position:relative}
 nav.dock button span{font-size:20px;line-height:1.1}
 nav.dock button[aria-current="page"]{background:var(--brand-soft);color:var(--brand)}
@@ -393,7 +393,7 @@ details.card>summary{font-weight:700;cursor:pointer;padding:2px 0}
 <script>
 (function(){
 'use strict';
-const KEY='dakahlia_farm_v1', VER=32;
+const KEY='dakahlia_farm_v1', VER=33;
 const HOURS=[18,19,20,21,22,23,0,1,2,3,4,5,6];
 const pad=n=>(n<10?'0':'')+n;
 const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -1180,7 +1180,7 @@ function setHTML(){
    '<div class="row" style="margin-top:10px"><button class="btn" id="wake">إبقاء الشاشة شغالة</button><span class="small muted" id="wakeMsg"></span></div>'+
    '<div class="alert info" style="margin-top:10px"><p class="small">التنبيهات بتشتغل والتطبيق مفتوح على الشاشة. لو اتقفل، التذكير اللي فات بيظهر أول ما تفتحه.</p></div></div>'+
    workersSetHTML()+
-   flockCardHTML()+aiCardHTML()+nativeCardHTML()+pinCardHTML()+
+   flockCardHTML()+nativeCardHTML()+pinCardHTML()+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">التحديث</h3><div class="row" style="margin-top:8px"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار '+VER+' (بياناتك مش بتتمسح)</span></div></div>'+
    '<div class="foot">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار '+VER+'</span></div></div>';
 }
@@ -1675,14 +1675,14 @@ function stepHour(d){const i=HOURS.indexOf(ui.curHr==null?HOURS[0]:ui.curHr),n=M
 function stepHourView(d){const n=Math.max(0,Math.min(HOURS.length-1,ui.hour+d));if(n===ui.hour)return;ui.hour=n;showSheet();const sh=$('.sheet');if(sh)sh.scrollTop=0}
 
 /* ---------- shell ---------- */
-const TABS=[['home','🏠','الرئيسية'],['tasks','✅','المهام'],['treat','💉','العلاج'],['log','📋','السجل'],['set','⚙️','الإعدادات']];
+const TABS=[['home','🏠','الرئيسية'],['tasks','✅','المهام'],['treat','💉','العلاج'],['ai','🤖','المساعد'],['log','📋','السجل'],['set','⚙️','الإعدادات']];
 function renderNav(){
   const tp=tasksProgress(ui.shift,ui.date),left=tp.total-tp.done;
   $('#nav').innerHTML=TABS.map(t=>'<button data-tab="'+t[0]+'"'+(ui.tab===t[0]?' aria-current="page"':'')+'><span>'+t[1]+'</span>'+t[2]+(t[0]==='tasks'&&left>0?'<em>'+left+'</em>':'')+'</button>').join('');
 }
 function render(){
   renderNav();
-  $('#app').innerHTML=ui.tab==='home'?homeHTML():ui.tab==='tasks'?tasksHTML():ui.tab==='treat'?treatHTML():ui.tab==='log'?logHTML():setHTML();
+  $('#app').innerHTML=ui.tab==='home'?homeHTML():ui.tab==='tasks'?tasksHTML():ui.tab==='treat'?treatHTML():ui.tab==='ai'?aiPageHTML():ui.tab==='log'?logHTML():setHTML();
   showSheet();renderBanner();
   if(ui.tab==='treat')renderTList();
   if(ui.tab==='log')drawCharts();
@@ -1938,6 +1938,7 @@ async function weatherTxt(){try{
   const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=28.11&longitude=30.75&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Africa%2FCairo&forecast_days=2');
   const j=await r.json(),c=j.current,d=j.daily;
   return 'طقس المنيا الآن: '+c.temperature_2m+'° رطوبة '+c.relative_humidity_2m+'% رياح '+c.wind_speed_10m+' كم/س. النهارده '+d.temperature_2m_min[0]+'–'+d.temperature_2m_max[0]+'°، بكره '+d.temperature_2m_min[1]+'–'+d.temperature_2m_max[1]+'°.'}catch(e){return 'الطقس غير متاح'}}
+function aiPageHTML(){return head('المساعد الذكي',false)+'<div class="wrap">'+aiCardHTML()+'</div>'}
 function aiOutHTML(t){return t?'<div class="aiout"><div style="white-space:pre-wrap;line-height:1.8">'+esc(t)+'</div><div class="small muted" style="margin-top:8px">⚠️ إرشادات عامة وليست بديل للطبيب البيطري · م/ عمرو مدحت</div></div>':''}
 function aiCardHTML(){const k=lsg(AIK);
   return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🤖 المساعد الذكي (مجاني)</h3>'+
@@ -1994,7 +1995,11 @@ try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins
   if(N&&localStorage.getItem('farm_bubble_auto')==='1')N.ensureBubble().catch(()=>{});
   if(N){const drain=()=>N.drainQuick().then(r=>{try{const a=JSON.parse((r&&r.items)||'[]');if(a.length)window.FARM.quick(a)}catch(e){}}).catch(()=>{});
     N.addListener('quick',drain);drain();document.addEventListener('visibilitychange',()=>{if(!document.hidden)drain()})}}catch(e){}
-try{const AP=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;if(AP)AP.addListener('backButton',()=>{const c=document.querySelector('.rep-close,[data-close],#rclose,.sheet-close');if(c){c.click();return}if(ui.tab!=='home'){ui.tab='home';render();return}AP.minimizeApp()})}catch(e){}
+try{history.replaceState({base:1},'');history.pushState({top:1},'');
+  window.addEventListener('popstate',()=>{if(history.state&&history.state.base){
+    if(ui.tab!=='home'){ui.tab='home';render()}
+    else{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(N&&N.minimizeApp)N.minimizeApp().catch(()=>{})}
+    history.pushState({top:1},'')}})}catch(e){}
 render();flash();tick();sclock();autoSnap();if(S.settings.pin)showLock();
 setInterval(tick,15000);
 })();
