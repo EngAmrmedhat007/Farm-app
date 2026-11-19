@@ -393,7 +393,7 @@ details.card>summary{font-weight:700;cursor:pointer;padding:2px 0}
 <script>
 (function(){
 'use strict';
-const KEY='dakahlia_farm_v1', VER=33;
+const KEY='dakahlia_farm_v1', VER=35;
 const HOURS=[18,19,20,21,22,23,0,1,2,3,4,5,6];
 const pad=n=>(n<10?'0':'')+n;
 const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -1922,18 +1922,30 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Da
 const AIK='farm_ai_key',AIM='farm_ai_model';let aiLast='';
 const lsg=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}},lss=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
 const AISYS='إنت مساعد خبير لمزرعة أمهات دجاج تسمين (Breeder) سلالة Ross 308 في المنيا بمصر. رد بالعامية المصرية المبسطة وبإيجاز (نقاط قصيرة). ممنوع تحديد جرعات أدوية أو تشخيص قاطع؛ للعلاج والجرعات انصح بمراجعة الطبيب البيطري ونشرة المنتج. وضّح أي معلومة مش متأكد منها.';
-async function aiModel(k){let m=lsg(AIM);if(m)return m;
+async function aiList(k){let L=[];try{L=JSON.parse(lsg('farm_ai_list')||'[]')}catch(e){}
+  if(L.length)return L;
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(k));
   if(!r.ok)throw new Error('المفتاح غير صالح ('+r.status+')');
   const j=await r.json();
-  const L=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).indexOf('generateContent')>=0&&/gemini-[\d.]+-flash$/.test(x.name.replace('models/',''))).map(x=>x.name.replace('models/','')).sort().reverse();
-  m=L[0]||'gemini-flash-latest';lss(AIM,m);return m}
+  const ver=n=>parseFloat((/gemini-([\d.]+)-/.exec(n)||[0,0])[1]);
+  L=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).indexOf('generateContent')>=0).map(x=>x.name.replace('models/','')).filter(n=>/^gemini-[\d.]+-flash(-lite)?$/.test(n))
+    .sort((a,b)=>(/lite/.test(a)-/lite/.test(b))||ver(b)-ver(a));
+  L=L.concat(['gemini-flash-latest','gemini-flash-lite-latest']);
+  lss('farm_ai_list',JSON.stringify(L));return L}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 async function aiAsk(prompt){const k=lsg(AIK);if(!k)throw new Error('ضيف مفتاح Gemini الأول من الإعدادات');
-  const m=await aiModel(k);
-  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:AISYS}]},contents:[{role:'user',parts:[{text:prompt}]}]})});
-  if(!r.ok){if(r.status===404)lss(AIM,'');throw new Error(r.status===429?'وصلت للحد المجاني اليومي، جرّب بعدين':'تعذّر الاتصال ('+r.status+')')}
-  const j=await r.json(),c=j.candidates&&j.candidates[0];
-  return(c&&c.content&&c.content.parts||[]).map(p=>p.text||'').join('').trim()||'مفيش رد'}
+  const L=await aiList(k);let last=0;
+  for(let pass=0;pass<2;pass++){
+    for(const m of L){
+      let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:AISYS}]},contents:[{role:'user',parts:[{text:prompt}]}]})})}catch(e){last=0;continue}
+      if(r.ok){const j=await r.json(),c=j.candidates&&j.candidates[0];
+        const t=(c&&c.content&&c.content.parts||[]).map(p=>p.text||'').join('').trim();if(t)return t;continue}
+      last=r.status;
+      if(r.status===400||r.status===401||r.status===403)throw new Error('المفتاح مش مقبول ('+r.status+'). اعمل مفتاح جديد من AI Studio');
+    }
+    if(pass===0)await sleep(1500)}
+  lss('farm_ai_list','');
+  throw new Error(last===429?'وصلت للحد المجاني، جرّب بعد شوية':'خدمة Gemini مشغولة دلوقتي ('+(last||'اتصال')+')، جرّب تاني بعد دقيقة')}
 async function weatherTxt(){try{
   const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=28.11&longitude=30.75&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Africa%2FCairo&forecast_days=2');
   const j=await r.json(),c=j.current,d=j.daily;
@@ -1961,7 +1973,7 @@ document.addEventListener('click',async e=>{
     if(!txt){try{txt=await aiAsk('لخّص باختصار عن '+(t.kind==='vaccine'?'تحصين':'دواء')+' "'+t.name+'" في أمهات التسمين: الغرض، طريقة الإعطاء المعتادة، احتياطات، أعراض جانبية محتملة. بدون ذكر جرعات.');lss(ck,txt)}catch(er){txt='⚠️ '+er.message}}
     box.innerHTML=aiOutHTML(txt);return}
   const k=b.dataset.ai;
-  if(k==='key'){const v=($('#aiKey').value||'').trim();if(!v)return;lss(AIK,v);lss(AIM,'');aiLast='✓ اتحفظ المفتاح';render();return}
+  if(k==='key'){const v=($('#aiKey').value||'').trim();if(!v)return;lss(AIK,v);lss('farm_ai_list','');aiLast='✓ اتحفظ المفتاح';render();return}
   if(k==='ask'){const q=($('#aiQ').value||'').trim();if(!q)return;aiRun(b,()=>aiAsk(aiContext()+'\n'+q));return}
   if(k==='adv'){aiRun(b,async()=>aiAsk(aiContext()+'\n'+await weatherTxt()+'\nإدّيني نصايح قصيرة لضبط التهوية والمراوح والهياتر والتبريد والعلف والمياه للوردية الجاية.'))}
 });
@@ -1995,7 +2007,13 @@ try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins
   if(N&&localStorage.getItem('farm_bubble_auto')==='1')N.ensureBubble().catch(()=>{});
   if(N){const drain=()=>N.drainQuick().then(r=>{try{const a=JSON.parse((r&&r.items)||'[]');if(a.length)window.FARM.quick(a)}catch(e){}}).catch(()=>{});
     N.addListener('quick',drain);drain();document.addEventListener('visibilitychange',()=>{if(!document.hidden)drain()})}}catch(e){}
-try{history.replaceState({base:1},'');history.pushState({top:1},'');
+window.__farmBack=()=>{
+  if($('#repView')){closeReport();return true}
+  if(history.state&&history.state.sheet){history.back();return true}
+  if(ui.open||ui.hourView||ui.handover||ui.ledger){ui.open=null;ui.hourView=false;ui.handover=false;ui.ledger=null;render();return true}
+  if(ui.tab!=='home'){ui.tab='home';render();return true}
+  return false};
+try{if(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())throw 0;history.replaceState({base:1},'');history.pushState({top:1},'');
   window.addEventListener('popstate',()=>{if(history.state&&history.state.base){
     if(ui.tab!=='home'){ui.tab='home';render()}
     else{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(N&&N.minimizeApp)N.minimizeApp().catch(()=>{})}
