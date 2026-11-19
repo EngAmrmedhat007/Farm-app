@@ -313,6 +313,9 @@ nav.dock .sbrand,nav.dock .sfoot{display:none}
   .sheet .wrap{grid-template-columns:repeat(3,minmax(0,1fr))}
 }
 input.bad{border-color:var(--bad)!important;background:var(--badbg)}
+
+.noterow{display:flex;gap:8px;align-items:center;margin-top:8px}.noterow input[type=text]{flex:1;margin:0}.sw.flt{white-space:nowrap}
+.ph-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.ph-row:last-child{border-bottom:0}.ph-row b{display:block}.ph-row input{width:84px;text-align:center}.ph-low{color:var(--bad)}
 </style>
 </head>
 <body>
@@ -357,22 +360,24 @@ const DEFTASKS=()=>[
  {id:'t10',label:'نزول العلف مع مهندس التعليف',shift:'eve',perHouse:false,times:[],on:true}];
 const DEF=()=>({settings:{houses:mkHouses(),hot:30,tray:30,sound:true,
   steps:[{t:26,p:25},{t:28,p:50},{t:30,p:75},{t:32,p:100}],
-  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,hegM:'',hegF:'',hegSource:'all',workers:[],crews:[],crewRot:{date:'',idx:0},penalties:[],wake:{on:false,time:'23:30'},pin:'',pinQ:'',pinA:'',lastBackup:0,
+  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,flock:{breed:'روس 308',recvDate:'2026-06-03',recvW:'17',recvD:'2'},hegM:'',hegF:'',hegSource:'all',workers:[],crews:[],crewRot:{date:'',idx:0},penalties:[],wake:{on:false,time:'23:30'},pin:'',pinQ:'',pinA:'',lastBackup:0,
   tasks:DEFTASKS(),engineers:[],rot:{date:'',idx:0}},
-  days:{},eve:{},treat:[],alerts:[],fired:{},todo:{},feedEng:{},feedCrew:{},crewMod:{},evx:{},copied:{},issues:[],handover:{}});
+  days:{},eve:{},treat:[],alerts:[],fired:{},todo:{},feedEng:{},feedCrew:{},crewMod:{},evx:{},copied:{},issues:[],handover:{},pharm:[]});
 let S,storageOK=true;
 function load(){
   let raw=null;
   try{raw=JSON.parse(localStorage.getItem(KEY))}catch(e){storageOK=false}
   S=DEF();
   if(raw&&typeof raw==='object'){
-    ['days','eve','treat','alerts','fired','todo','feedEng','feedCrew','crewMod','evx','copied','issues','handover'].forEach(k=>{if(raw[k])S[k]=raw[k]});
+    ['days','eve','treat','alerts','fired','todo','feedEng','feedCrew','crewMod','evx','copied','issues','handover','pharm'].forEach(k=>{if(raw[k])S[k]=raw[k]});
     if(raw.settings)for(const k in raw.settings){if(raw.settings[k]!==undefined&&raw.settings[k]!==null)S.settings[k]=raw.settings[k]}
   }
   const H=S.settings.houses;
   while(H.length<8)H.push({id:H.length+1,name:'عنبر '+(H.length+1),hensC:'',roosC:'',hensF:'',roosF:'',fans:'',show:true,tgtC:'',tgtF:''});
   H.forEach(h=>{['hensC','hensF','roosC','roosF','tgtC','tgtF'].forEach(k=>{if(h[k]===undefined)h[k]=''});if(h.show===undefined)h.show=true});
   if(!Array.isArray(S.issues))S.issues=[];
+  if(!Array.isArray(S.pharm))S.pharm=[];
+  if(!S.settings.flock||typeof S.settings.flock!=='object')S.settings.flock={breed:'',recvDate:'',recvW:'',recvD:''};
   if(!S.handover||typeof S.handover!=='object')S.handover={};
   if(!Array.isArray(S.settings.tasks))S.settings.tasks=DEFTASKS();
   if(!Array.isArray(S.settings.engineers))S.settings.engineers=[];
@@ -395,7 +400,7 @@ function persistSoon(){clearTimeout(saveT);saveT=setTimeout(()=>{persist();flash
 function flash(){const e=$('#savedmsg');if(e){e.textContent=storageOK?'تم الحفظ ✓':'التخزين غير متاح، انسخ نسخة احتياطية من السجل';e.style.color=storageOK?'':'var(--bad)'}}
 load();
 
-const ui={pinEdit:false,rcv:null,ledger:null,curHr:null,ch:{scope:0,range:14},rn:7,tab:'home',shift:new Date().getHours()>=17||new Date().getHours()<6?'eve':'day',date:today(),open:null,side:'c',hourView:false,
+const ui={pinEdit:false,rcv:null,ledger:null,curHr:null,ch:{scope:0,range:14},rn:7,tab:'home',shift:new Date().getHours()>=17||new Date().getHours()<6?'eve':'day',date:(new Date().getHours()<6?addDays(today(),-1):today()),open:null,side:'c',hourView:false,
   hour:(()=>{const i=HOURS.indexOf(new Date().getHours());return i<0?0:i})(),all:{},panel:false,handover:false};
 const hname=id=>S.settings.houses[id-1].name||('عنبر '+id);
 
@@ -670,7 +675,7 @@ function homeHTML(){
    (ev?'<div style="margin-top:12px"><button class="btn primary" style="width:100%" data-act="hourview">🕐 تسجيل حسب الساعة (كل العنابر)</button></div>':'')+
    '<div class="row" style="margin-top:10px;gap:8px"><button class="btn" style="flex:1" data-act="ledger" data-kind="'+(ev?'eve':'day')+'">📒 دفتر '+(ev?'المسائي':'النهاري')+'</button>'+(ev?'<button class="btn" style="flex:1" data-act="ledger" data-kind="x">📋 سايلو · مياه · هياتر</button>':'')+'</div><div style="margin-top:10px"><button class="btn" style="width:100%" data-act="gotransfer">🔁 نقل واستلام البيانات (بين الأجهزة)</button></div>'+
    '<div class="sec-t"><h2>العنابر</h2><span class="small muted">اضغط على عنبر للتسجيل</span></div><div class="grid">'+cards+'</div>'+
-   '<div class="card"><div class="row spread"><b>📤 تقرير اليوم</b><button class="btn sm" data-act="report">نسخ التقرير</button></div><textarea id="repBox" hidden readonly style="margin-top:10px;min-height:160px"></textarea><div class="small" id="repMsg" style="margin-top:6px"></div></div>'+
+   '<div class="card"><div class="row spread"><b>📤 تقرير اليوم</b><button class="btn sm" data-act="report">نسخ التقرير</button>'+(ev?'<button class="btn sm" data-act="shiftpdf">📑 جدول PDF</button>':'')+'</div><textarea id="repBox" hidden readonly style="margin-top:10px;min-height:160px"></textarea><div class="small" id="repMsg" style="margin-top:6px"></div></div>'+
    '<div class="foot">إعداد وتصميم: <b>م/ عمرو مدحت</b></div></div>';
 }
 
@@ -788,12 +793,20 @@ function evField(f,attr,house,hour,val){
   if(f[2]==='sw')return '<label class="sw"><input type="checkbox" '+a+(val==='1'?' checked':'')+'><span>'+f[1]+'</span></label>';
   return '<label class="f"><span>'+f[1]+'</span><input type="number" inputmode="decimal" step="'+f[2]+'" '+a+' value="'+esc(has(val)?val:'')+'"></label>';
 }
+function noteRow(h,hour,r,ph){
+  return '<div class="noterow"><input type="text" data-ek="note" data-house="'+h+'" data-hour="'+hour+'" placeholder="'+ph+'" value="'+esc(r.note||'')+'"><label class="sw flt"><input type="checkbox" data-ek="nfault" data-house="'+h+'" data-hour="'+hour+'"'+(r.nfault==='1'?' checked':'')+'><span>⚠️ عطل</span></label></div>';
+}
+function syncFault(date,hour,h){
+  const r=eveRec(date,hour,h),id='nf:'+date+':'+hour+':'+h,i=S.issues.findIndex(x=>x.id===id),t=String(r.note||'').trim();
+  if(r.nfault==='1'&&t){const txt=hLabel(hour)+' · '+t;if(i<0)S.issues.push({id:id,house:h,text:txt,date:date,ts:Date.now(),done:false,auto:true});else S.issues[i].text=txt}
+  else if(i>=0)S.issues.splice(i,1);
+}
 function hourBox(h,hour){
   const r=eveRec(ui.date,hour,h);
   return '<div class="box" data-box="'+h+':'+hour+'"><div class="row spread"><h3 style="font-size:17px;color:var(--fg)">🕐 '+hLabel(hour)+'</h3><span class="pill" data-pill></span></div>'+
    '<div class="hrow2">'+eveFields.map(f=>evField(f,'data-ek',h,hour,r[f[0]])).join('')+'</div>'+
    '<div class="curt" data-curt></div>'+
-   '<input type="text" data-ek="note" data-house="'+h+'" data-hour="'+hour+'" placeholder="ملاحظة على العنبر في الساعة دي" value="'+esc(r.note||'')+'">'+
+   noteRow(h,hour,r,'ملاحظة على العنبر في الساعة دي')+
    '<button class="btn sm" data-confirm="applyone:'+h+':'+hour+'">تطبيق الأرقام دي على كل العنابر</button></div>';
 }
 function eveSheetHTML(){
@@ -816,7 +829,7 @@ function hourViewHTML(){
   const chips=HOURS.map((x,i)=>{let any=false;for(let h=1;h<=8;h++)if(evFilled(eveRec(ui.date,x,h)))any=true;return '<button data-hr="'+i+'" aria-pressed="'+(i===ui.hour)+'"'+(x===nowHour()?' class="now"':'')+'>'+hLabel(x)+(any?'<i></i>':'')+'</button>'}).join('');
   const rows=[1,2,3,4,5,6,7,8].map(h=>{const r=eveRec(ui.date,hour,h);
     return '<div class="hh" data-box="'+h+':'+hour+'"><header><b>'+esc(hname(h))+'</b><span class="pill" data-pill></span></header><div class="hrow2">'+eveFields.map(f=>evField(f,'data-ek',h,hour,r[f[0]])).join('')+'</div><div class="curt" data-curt></div>'+
-      '<input type="text" data-ek="note" data-house="'+h+'" data-hour="'+hour+'" placeholder="ملاحظة" value="'+esc(r.note||'')+'"></div>'}).join('');
+      noteRow(h,hour,r,'ملاحظة')+'</div>'}).join('');
   return '<div class="sheet"><div class="shead"><button class="back" data-act="back">← رجوع</button><h2>تسجيل الساعة · '+parseD(ui.date).getDate()+'/'+(parseD(ui.date).getMonth()+1)+'</h2></div><div class="wrap">'+
    '<div class="hbar"><div class="hbr"><button class="btn sm" data-hstep2="-1" aria-label="الساعة السابقة">›</button><div class="hrs" id="hbarRow2">'+chips+'</div><button class="btn sm" data-hstep2="1" aria-label="الساعة التالية">‹</button></div><div class="hnowline">الساعة '+hLabel(hour)+(nowHour()>=0?' · الساعة الحالية '+hLabel(nowHour()):'')+' · اسحب الشاشة يمين أو شمال لتغيير الساعة</div></div><div class="saved" id="savedmsg"></div>'+
    '<div class="box g"><h3>كل العنابر في الساعة '+hLabel(hour)+'</h3><div class="small muted">اكتب الأرقام مرة واحدة وطبقها على الـ8 عنابر، وبعدها عدّل أي عنبر مختلف.</div>'+
@@ -920,9 +933,72 @@ function handoverHTML(){
 /* ---------- treatments ---------- */
 const nextHour=()=>pad(new Date(Date.now()+3600000).getHours())+':00';
 function human(min){if(min<60)return min+' دقيقة';if(min<1440){const h=Math.floor(min/60),m=min%60;return h+' ساعة'+(m?' و '+m+' دقيقة':'')}return Math.floor(min/1440)+' يوم'}
+/* ---------- pharmacy stock ---------- */
+const normN=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').toLowerCase();
+function pharmHTML(){
+  const L=S.pharm.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  const rows=L.map(x=>{const low=has(x.min)&&num(x.qty)<=num(x.min),ex=x.exp&&x.exp<today();
+    return '<div class="ph-row"><div><b>'+esc(x.name)+'</b><span class="small muted">'+esc(x.unit||'')+(x.exp?' · صلاحية '+esc(x.exp)+(ex?' (منتهي)':''):'')+(low?' · <span class="ph-low">قرب يخلص</span>':'')+'</span></div>'+
+     '<input type="number" inputmode="decimal" min="0" step="any" data-ph="'+x.id+'" value="'+esc(x.qty)+'" aria-label="الكمية"><button class="btn sm danger" data-confirm="phdel:'+x.id+'">حذف</button></div>'}).join('');
+  const names=L.map(x=>'<option value="'+esc(x.name)+'">').join('');
+  return '<details class="card" id="pharm"><summary>💊 مخزون الصيدلية ('+L.length+' صنف)</summary><div class="g1" style="margin-top:12px">'+
+   '<div class="small muted">اكتب الاسم. لو الصنف موجود بيتضاف على الكمية القديمة، ولو جديد بيتعمل صنف جديد. لتصحيح الكمية (جرد) عدّل الرقم قدام الصنف.</div>'+
+   '<label class="f"><span>اسم الصنف</span><input type="text" id="phName" list="phNames" autocomplete="off" placeholder="مثال: أوكسي تتراسيكلين"><datalist id="phNames">'+names+'</datalist></label>'+
+   '<div class="g2"><label class="f"><span>الكمية</span><input type="number" inputmode="decimal" min="0" step="any" id="phQty"></label><label class="f"><span>الوحدة</span><select id="phUnit"><option>عبوة</option><option>زجاجة</option><option>كيس</option><option>علبة</option><option>جرعة</option><option>مل</option><option>لتر</option><option>جم</option><option>كجم</option></select></label></div>'+
+   '<div class="g2"><label class="f"><span>تاريخ الصلاحية (اختياري)</span><input type="date" id="phExp"></label><label class="f"><span>حد التنبيه (اختياري)</span><input type="number" inputmode="decimal" min="0" step="any" id="phMin"></label></div>'+
+   '<button class="btn primary" data-act="phadd">إضافة للمخزون</button><div class="small" id="phMsg"></div>'+
+   (rows?'<div style="margin-top:6px">'+rows+'</div>':'<div class="empty" style="padding:10px">المخزون فاضي</div>')+
+   '<button class="btn" data-act="phpdf">📄 جرد الصيدلية (PDF)</button></div></details>';
+}
+function pharmReportHTML(){
+  const L=S.pharm.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+  return '<div class="rhead"><div><h1>شركة الدقهلية للدواجن</h1><h2>جرد الصيدلية · '+esc(fmtDate(today()))+'</h2></div><div class="rsig">م/ عمرو مدحت<br><span>مهندس إنتاج</span></div></div>'+
+   (L.length?'<table><thead><tr><th>#</th><th>الصنف</th><th>الكمية الموجودة</th><th>الوحدة</th><th>الصلاحية</th></tr></thead><tbody>'+L.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.name)+'</td><td>'+esc(fmtN(num(x.qty)))+'</td><td>'+esc(x.unit||'')+'</td><td>'+esc(x.exp||'—')+'</td></tr>').join('')+'</tbody></table>':'<p>المخزون فاضي</p>')+
+   '<div class="rfoot">إعداد: م/ عمرو مدحت · '+fmtDate(today())+'</div>';
+}
+function openPlainReport(html){
+  let v=$('#repView');if(!v){v=document.createElement('div');v.id='repView';document.body.appendChild(v);history.pushState({sheet:1,rep:1},'')}
+  v.innerHTML='<div class="rbar norep"><div class="row"><button class="btn primary" data-act="repprint" style="flex:1">🖨️ حفظ PDF / طباعة</button><button class="btn" data-act="repclose">إغلاق</button></div></div><div class="rpage">'+html+'</div>';
+  document.body.classList.add('repopen');
+}
+const toEn=v=>String(v==null?'':v).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+const WORDNUM={'واحد':1,'اثنين':2,'اتنين':2,'تلاتة':3,'ثلاثة':3};
+function fmtNote(t){
+  let x=String(t||'').trim();
+  x=x.replace(/(?:سنسور|سور)\s*(واحد|اثنين|اتنين|تلاتة|ثلاثة|[0-9٠-٩]+)\s*[=:]?\s*([0-9٠-٩]+(?:[.,٫][0-9٠-٩]+)?)/g,(m,n,v)=>'S'+(WORDNUM[n]||toEn(n))+' = '+toEn(v).replace(/[,٫]/,'.')+'°');
+  return x.replace(/°\s*[،,]?\s*(?=S\d)/g,'° ، ');
+}
+function flockAge(date){
+  const f=S.settings.flock||{};if(!f.recvDate||!has(f.recvW))return null;
+  const d=diffDays(f.recvDate,date)+num(f.recvW)*7+num(f.recvD);if(d<0)return null;
+  const w=num(f.recvW),dd=num(f.recvD);
+  return {w:Math.floor(d/7),d:d%7,rw:w,rd:dd,breed:f.breed||''};
+}
+const ageTxt=(w,d)=>w+' أسبوع'+(d?' و '+d+(d===1?' يوم':d===2?' يومين':' أيام'):'');
+function flockLine(date){
+  const a=flockAge(date);if(!a)return '';
+  return '<p>إجمالي عمر القطيع: <b>'+ageTxt(a.w,a.d)+'</b> · عمر الاستلام: <b>'+ageTxt(a.rw,a.rd)+'</b>'+(a.breed?' · نوع القطيع: <b>'+esc(a.breed)+'</b>':'')+'</p>';
+}
+function shiftReportHTML(date){
+  const rows=[];for(let h=1;h<=8;h++){const e=houseEve(h,date);if(!e.n)continue;const x=evxRec(date,h);
+    rows.push('<tr><td>'+esc(hname(h))+'</td><td>'+dash(e.avgT)+'</td><td>'+dash(e.minT)+' - '+dash(e.maxT)+'</td><td>'+dash(e.outT)+'</td><td>'+(e.hum===null?'—':Math.round(e.hum)+'%')+'</td><td>'+dash(e.fans)+'</td><td>'+(has(x.h1)||has(x.h2)?esc(runsTxt(x)||'—'):e.heatHrs?e.heatHrs+' س':'—')+'</td><td>'+(has(x.silo)?esc(x.silo):'—')+'</td><td>'+(has(x.water)?esc(x.water):'—')+'</td></tr>')}
+  const notes=[],faults=[];
+  const row=(tm,h,txt,flt)=>'<tr><td>'+esc(tm)+'</td><td>'+esc(h)+'</td><td><bdi>'+esc(fmtNote(txt))+'</bdi>'+(flt?' ⚠️':'')+'</td></tr>';
+  HOURS.forEach(x=>{for(let h=1;h<=8;h++){const r=eveRec(date,x,h);if(!r.note)continue;notes.push(row(hLabel(x),String(h),r.note,r.nfault==='1'));if(r.nfault==='1')faults.push(row(hLabel(x),String(h),r.note,false))}});
+  const ho=S.handover[date+':eve']||{};
+  String(ho.note||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).forEach(l=>{const m=/عنبر\s*([0-9٠-٩]+)/.exec(l);notes.push(row('—',m?toEn(m[1]):'—',l,false))});
+  S.issues.filter(i=>!i.done&&!i.auto).forEach(i=>{const r=row('—',i.house?String(i.house):'—',i.text,false);notes.push(r);faults.push(r)});
+  const d=eveDay(date),age=flockLine(addDays(date,1));
+  return '<div class="rhead"><div><h1>شركة الدقهلية للدواجن</h1><h2>تقرير الوردية المسائية · '+esc(fmtDate(date))+'</h2></div><div class="rsig">م/ عمرو مدحت<br><span>مهندس إنتاج</span></div></div>'+age+
+   '<p>متوسط الحرارة داخل: <b>'+dash(d.avgT)+'°</b> · خارج: <b>'+dash(d.outT)+'°</b> · الرطوبة: <b>'+(d.hum===null?'—':Math.round(d.hum)+'%')+'</b> · مهندس التعليف: <b>'+esc(engOn(date)||'—')+'</b></p>'+
+   '<h3>العنابر</h3>'+(rows.length?'<table><thead><tr><th>العنبر</th><th>متوسط حرارة داخل</th><th>أقل - أعلى</th><th>خارج</th><th>رطوبة</th><th>أقصى مراوح</th><th>الهياتر</th><th>السايلو كجم</th><th>المياه</th></tr></thead><tbody>'+rows.join('')+'</tbody></table>':'<p>لا توجد قراءات.</p>')+
+   '<h3>الملاحظات</h3>'+(notes.length?'<table><thead><tr><th>التوقيت</th><th>العنبر</th><th>الملاحظات</th></tr></thead><tbody>'+notes.join('')+'</tbody></table>':'<p>لا توجد ملاحظات.</p>')+
+   '<h3>الأعطال</h3>'+(faults.length?'<table><thead><tr><th>التوقيت</th><th>العنبر</th><th>العطل</th></tr></thead><tbody>'+faults.join('')+'</tbody></table>':'<p>لا توجد أعطال.</p>')+
+   '<div class="rfoot">إعداد: م/ عمرو مدحت · '+fmtDate(today())+'</div>';
+}
 function treatHTML(){
   const q=S.settings.houses.map(H=>'<label class="f"><span>'+esc(hname(H.id))+'</span><input type="number" inputmode="decimal" min="0" data-q="'+H.id+'" placeholder="-"></label>').join('');
-  return head('العلاج والتحصين',false)+'<div class="wrap"><details class="card" id="tform"><summary>+ إضافة تحصين أو علاج</summary><div class="g1" style="margin-top:12px">'+
+  return head('العلاج والتحصين',false)+'<div class="wrap">'+pharmHTML()+'<details class="card" id="tform"><summary>+ إضافة تحصين أو علاج</summary><div class="g1" style="margin-top:12px">'+
    '<div class="tabs2" id="tkind"><button data-kind="vaccine" aria-pressed="true">💉 تحصين</button><button data-kind="drug" aria-pressed="false">💊 علاج</button></div>'+
    '<label class="f"><span>الاسم</span><input type="text" id="tName" placeholder="مثال: لاسوتا / فيتامين"></label>'+
    '<div class="g2"><label class="f"><span>التاريخ</span><input type="date" id="tDate" value="'+today()+'"></label><label class="f"><span>الوقت</span><input type="time" id="tTime" value="'+nextHour()+'"></label></div>'+
@@ -970,6 +1046,7 @@ function reportText(date,shift){
   const L=['📋 تقرير المزرعة - '+fmtDate(date)+(shift==='eve'?' (مسائي)':' (نهاري)'),'م/ عمرو مدحت','━━━━━━━━━━'];
   if(shift==='eve'){
     const d=eveDay(date);
+    {const fa=flockAge(addDays(date,1));if(fa)L.push('إجمالي عمر القطيع: '+ageTxt(fa.w,fa.d),'عمر الاستلام: '+ageTxt(fa.rw,fa.rd)+(fa.breed?' | نوع القطيع: '+fa.breed:''))}
     L.push('متوسط الحرارة داخل: '+dash(d.avgT)+'°','الحرارة الخارجية: '+dash(d.outT)+'°','متوسط الرطوبة: '+(d.hum===null?'—':Math.round(d.hum)+'%'),'مهندس التعليف: '+(engOn(date)||'—'),'━━━━━━━━━━');
     crewText(date).forEach(x=>L.push(x));
     evxText(date).forEach(x=>L.push(x));
@@ -989,16 +1066,30 @@ function reportText(date,shift){
 function logHTML(){
   const days=Object.keys(S.days).filter(d=>{for(let h=1;h<=8;h++)if(houseHas(d,h))return true;return false}).sort().reverse().slice(0,30);
   const list=days.length?days.map(d=>{const f=farmSum(d);return '<button class="btn" style="text-align:start;display:flex;justify-content:space-between;gap:10px;width:100%;margin-top:8px" data-opend="'+d+'"><span>'+d+'</span><span class="muted small">إجمالي بيض '+fmtN(f.tot)+' · مستبعد '+fmtN(f.x)+' · نافق '+fmtN(f.mort)+'</span></button>'}).join(''):'<div class="empty">لسه مفيش أيام مسجلة</div>';
-  return head('السجل',false)+'<div class="wrap cols">'+rcvCardHTML()+chartsCardHTML()+'<div class="card"><div class="row spread"><b>📄 تقرير PDF</b><button class="btn primary sm" data-act="repopen">إنشاء تقرير</button></div><div class="small muted" style="margin-top:6px">تقرير يوم أو أسبوع أو شهر بجداول ورسوم وبصمتك، تحفظه PDF من شاشة الطباعة.</div></div><div class="card"><h3 style="font-size:17px;color:var(--fg)">الأيام المسجلة</h3>'+list+'</div>'+
-   '<div class="card"><h3 style="font-size:17px;color:var(--fg)">نسخة احتياطية</h3><div class="small muted" style="margin:6px 0">البيانات محفوظة في متصفح الموبايل ده بس. '+(bkAge()===null?'لسه ماعملتش نسخة.':'آخر نسخة من '+bkAge()+' يوم.')+' احفظ ملف نسخة كل أسبوع وابعته لنفسك على واتساب.</div><div class="row"><button class="btn sm primary" data-act="bkshare">مشاركة ملف النسخة</button><button class="btn sm" data-act="bkfile">تنزيل ملف النسخة</button></div>'+
+  return head('السجل',false)+'<div class="wrap cols">'+chartsCardHTML()+'<div class="card"><div class="row spread"><b>📄 تقرير PDF</b><button class="btn primary sm" data-act="repopen">إنشاء تقرير</button></div><div class="small muted" style="margin-top:6px">تقرير يوم أو أسبوع أو شهر بجداول ورسوم وبصمتك، تحفظه PDF من شاشة الطباعة.</div></div><div class="card"><h3 style="font-size:17px;color:var(--fg)">الأيام المسجلة</h3>'+list+'</div>'+
+   '<div class="card"><h3 style="font-size:17px;color:var(--fg)">نسخة احتياطية</h3><div class="small muted" style="margin:6px 0">البيانات بتتحفظ على الجهاز وبتتزامن مع السحابة تلقائيًا، وبتتاخد نسخة تلقائية كل يوم (آخر 7 أيام). '+(bkAge()===null?'لسه ماعملتش نسخة.':'آخر نسخة من '+bkAge()+' يوم.')+' احفظ ملف نسخة كل أسبوع وابعته لنفسك على واتساب.</div><div class="row"><button class="btn sm primary" data-act="bkshare">مشاركة ملف النسخة</button><button class="btn sm" data-act="bkfile">تنزيل ملف النسخة</button></div>'+
    '<div class="row"><button class="btn sm" data-copy="json">نسخ نسخة كاملة</button><button class="btn sm" data-copy="day">نسخ النهاري (Excel)</button><button class="btn sm" data-copy="eve">نسخ المسائي (Excel)</button></div>'+
    '<textarea id="bk" readonly placeholder="النص اللي هتنسخه بيظهر هنا" style="margin-top:10px"></textarea><div class="small" id="cpmsg"></div>'+
+   '<h3 style="font-size:14px;color:var(--muted);margin-top:12px">نسخ تلقائية على الجهاز</h3><button class="btn sm" data-act="snaplist">عرض النسخ التلقائية</button><div id="snapBox" class="small" style="margin-top:6px"></div>'+
    '<h3 style="font-size:14px;color:var(--muted);margin-top:12px">استعادة من نسخة</h3><label class="btn sm" style="display:inline-flex;margin-top:6px">📂 اختيار ملف نسخة<input type="file" id="bkpick" accept=".json,.txt,application/json,text/plain" hidden></label><textarea id="rs" placeholder="الصق هنا النسخة الكاملة" style="margin-top:6px"></textarea>'+
    '<div class="row" style="margin-top:8px"><button class="btn sm danger" data-confirm="restore">استعادة (هتستبدل البيانات الحالية)</button><span class="small" id="rsmsg"></span></div></div>'+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">مسح البيانات</h3><div class="small muted" style="margin:6px 0">يمسح كل التسجيلات والتنبيهات، ويفضل الإعدادات.</div><button class="btn danger" data-confirm="wipe">مسح كل التسجيلات</button></div></div>';
 }
 
 /* ---------- settings ---------- */
+function flockCardHTML(){
+  const f=S.settings.flock||{},a=flockAge(today());
+  return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🐔 بيانات القطيع</h3><div class="g1" style="margin-top:10px">'+
+   '<label class="f"><span>نوع القطيع (السلالة)</span><input type="text" data-path="flock.breed" value="'+esc(f.breed||'')+'"></label>'+
+   '<label class="f"><span>تاريخ الاستلام</span><input type="date" data-path="flock.recvDate" value="'+esc(f.recvDate||'')+'"></label>'+
+   '<div class="g2"><label class="f"><span>عمر الاستلام (أسابيع)</span><input type="number" inputmode="numeric" data-path="flock.recvW" data-type="str" value="'+esc(f.recvW||'')+'"></label><label class="f"><span>+ أيام</span><input type="number" inputmode="numeric" data-path="flock.recvD" data-type="str" value="'+esc(f.recvD||'')+'"></label></div>'+
+   (a?'<div class="small">عمر القطيع النهارده: <b>'+ageTxt(a.w,a.d)+'</b></div>':'')+'</div></div>';
+}
+function nativeCardHTML(){
+  const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(!N)return '';
+  return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">📱 تشغيل الأندرويد</h3><div class="small muted" style="margin:6px 0">عشان النظام ما يقفلش التطبيق في الخلفية، فعّل الخطوات دي بالترتيب.</div>'+
+   '<div class="g1"><button class="btn" data-act="nkeep">1) تشغيل الخدمة المستمرة (إشعار دائم)</button><button class="btn" data-act="nbatt">2) استثناء التطبيق من توفير البطارية</button><button class="btn" data-act="novl">3) السماح بالظهور فوق التطبيقات</button><button class="btn" data-act="nbub">4) إظهار / إخفاء الفقاعة العائمة</button><div class="small" id="nMsg"></div></div></div>';
+}
 function setHTML(){
   const s=S.settings;
   const hs=s.houses.map((H,i)=>'<div class="houseset"><label class="f"><span>اسم العنبر</span><input type="text" data-path="houses.'+i+'.name" value="'+esc(H.name)+'"></label><label class="sw" style="justify-content:flex-start;margin:8px 0"><input type="checkbox" data-path="houses.'+i+'.show"'+(H.show!==false?' checked':'')+'><span>يظهر في الوردية النهارية</span></label><div class="g2" style="margin-bottom:8px"><label class="f"><span>مطلوب يومي: تبريد (بيضة)</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.tgtC" data-type="str" value="'+esc(H.tgtC)+'"></label><label class="f"><span>مطلوب يومي: مراوح (بيضة)</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.tgtF" data-type="str" value="'+esc(H.tgtF)+'"></label></div><div class="g2"><label class="f"><span>دجاج التبريد</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensC" data-type="str" value="'+esc(H.hensC)+'"></label><label class="f"><span>ديوك التبريد</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.roosC" data-type="str" value="'+esc(H.roosC)+'"></label><label class="f"><span>دجاج المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.hensF" data-type="str" value="'+esc(H.hensF)+'"></label><label class="f"><span>ديوك المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.roosF" data-type="str" value="'+esc(H.roosF)+'"></label></div><div class="g2" style="margin-top:8px"><label class="f"><span>عدد المراوح</span><input type="number" inputmode="numeric" data-path="houses.'+i+'.fans" data-type="str" value="'+esc(H.fans)+'"></label></div></div>').join('');
@@ -1021,7 +1112,7 @@ function setHTML(){
    '<div class="row" style="margin-top:10px"><button class="btn" id="wake">إبقاء الشاشة شغالة</button><span class="small muted" id="wakeMsg"></span></div>'+
    '<div class="alert info" style="margin-top:10px"><p class="small">التنبيهات بتشتغل والتطبيق مفتوح على الشاشة. لو اتقفل، التذكير اللي فات بيظهر أول ما تفتحه.</p></div></div>'+
    workersSetHTML()+
-   pinCardHTML()+
+   flockCardHTML()+nativeCardHTML()+pinCardHTML()+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">التحديث</h3><div class="row" style="margin-top:8px"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار '+VER+' (بياناتك مش بتتمسح)</span></div></div>'+
    '<div class="foot">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار '+VER+'</span></div></div>';
 }
@@ -1131,6 +1222,25 @@ function checkWake(){
   if(diff>=0&&diff<=90&&!S.fired['wake-'+sd]){S.fired['wake-'+sd]=Date.now();persist();startWake(sd)}
 }
 
+/* ---------- automatic daily snapshots (IndexedDB, last 7) ---------- */
+function snapDB(cb){try{const q=indexedDB.open('farm_snaps',1);q.onupgradeneeded=()=>q.result.createObjectStore('s');q.onsuccess=()=>cb(q.result);q.onerror=()=>cb(null)}catch(e){cb(null)}}
+function autoSnap(){
+  let k=today();try{if(localStorage.getItem('farm_snap_day')===k)return}catch(e){}
+  snapDB(db=>{if(!db)return;const tx=db.transaction('s','readwrite'),st=tx.objectStore('s');st.put(JSON.stringify(S),k);
+    st.getAllKeys().onsuccess=ev=>{const ks=ev.target.result.slice().sort();while(ks.length>7)st.delete(ks.shift())};
+    tx.oncomplete=()=>{try{localStorage.setItem('farm_snap_day',k)}catch(e){}}});
+}
+function snapList(){
+  const box=$('#snapBox');if(!box)return;
+  snapDB(db=>{if(!db){box.textContent='التخزين غير متاح';return}
+    const rq=db.transaction('s').objectStore('s').getAllKeys();
+    rq.onsuccess=()=>{const ks=rq.result.slice().sort().reverse();
+      box.innerHTML=ks.length?ks.map(k=>'<div class="row spread" style="margin-top:6px"><span>'+esc(k)+'</span><button class="btn sm danger" data-confirm="snaprest:'+esc(k)+'">استعادة</button></div>').join(''):'لسه مفيش نسخ تلقائية'}});
+}
+function snapRestore(k){
+  snapDB(db=>{if(!db)return;const rq=db.transaction('s').objectStore('s').get(k);
+    rq.onsuccess=()=>{try{const o=JSON.parse(rq.result);if(!o||!o.settings)throw 0;const keep={pin:S.settings.pin,pinQ:S.settings.pinQ,pinA:S.settings.pinA};localStorage.setItem(KEY,JSON.stringify(o));load();Object.assign(S.settings,keep);persist();render();flashMsg('تمت استعادة نسخة '+k)}catch(e){flashMsg('النسخة غير صالحة')}}});
+}
 /* ---------- backup ---------- */
 const bkAge=()=>S.settings.lastBackup?Math.floor((Date.now()-S.settings.lastBackup)/864e5):null;
 const bkName=()=>'farm-backup-'+today()+'.json';
@@ -1522,6 +1632,8 @@ function askConfirm(btn,action){
 function runConfirmed(a){
   const p=a.split(':');
   if(p[0]==='tdel'){S.treat=S.treat.filter(t=>t.id!==p[1]);persist();renderTList()}
+  else if(p[0]==='phdel'){S.pharm=S.pharm.filter(x=>x.id!==p[1]);persist();const op=$('#pharm')&&$('#pharm').open;render();if(op&&$('#pharm'))$('#pharm').open=true}
+  else if(p[0]==='snaprest'){snapRestore(p[1])}
   else if(p[0]==='clearalerts'){S.alerts=[];persist();renderBanner()}
   else if(p[0]==='deltask'){S.settings.tasks.splice(+p[1],1);persist();render()}
   else if(p[0]==='deleng'){S.settings.engineers.splice(+p[1],1);persist();render()}
@@ -1623,6 +1735,24 @@ document.addEventListener('click',e=>{
   if(d.act==='repopen'){openReport();return}
   if(d.act==='repclose'){if(history.state&&history.state.rep)history.back();else closeReport();return}
   if(d.act==='repprint'){window.print();return}
+  if(d.act==='shiftpdf'){openPlainReport(shiftReportHTML(ui.date));return}
+  if(d.act==='phpdf'){openPlainReport(pharmReportHTML());return}
+  if(d.act==='phadd'){
+    const nm=($('#phName').value||'').trim(),q=num($('#phQty').value),m=$('#phMsg');
+    if(!nm||!(q>0)){m.style.color='var(--bad)';m.textContent='اكتب الاسم وكمية أكبر من صفر';return}
+    const f=S.pharm.find(x=>normN(x.name)===normN(nm));
+    if(f){const old=num(f.qty);f.qty=old+q;if($('#phExp').value)f.exp=$('#phExp').value;if($('#phMin').value!=='')f.min=$('#phMin').value;m.textContent='اتضاف على الصنف الموجود: '+fmtN(old)+' ← '+fmtN(f.qty)}
+    else{S.pharm.push({id:uid(),name:nm,qty:q,unit:$('#phUnit').value,exp:$('#phExp').value||'',min:$('#phMin').value});m.textContent='اتعمل صنف جديد: '+nm}
+    const msg=m.textContent;persist();const o=$('#pharm');const op=o&&o.open;render();const o2=$('#pharm');if(o2&&op)o2.open=true;const m2=$('#phMsg');if(m2){m2.style.color='var(--ok)';m2.textContent=msg}return}
+  if(d.act==='snaplist'){snapList();return}
+  if(d.act&&d.act.charAt(0)==='n'&&/^(nkeep|nbatt|novl|nbub)$/.test(d.act)){
+    const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative,m=$('#nMsg');if(!N)return;
+    const say=t=>{if(m)m.textContent=t};
+    if(d.act==='nkeep'){N.startKeepAlive().then(()=>{try{localStorage.setItem('farm_keep','1')}catch(e){}say('الخدمة المستمرة شغالة ✓')}).catch(()=>say('تعذّر التشغيل'))}
+    if(d.act==='nbatt'){N.requestBatteryExemption().then(()=>say('اختار "السماح" في الشاشة اللي ظهرت')).catch(()=>say('تعذّر فتح الإعداد'))}
+    if(d.act==='novl'){N.requestOverlay().then(()=>say('فعّل "السماح بالعرض فوق التطبيقات" ثم ارجع')).catch(()=>say('تعذّر فتح الإعداد'))}
+    if(d.act==='nbub'){N.toggleBubble().then(r=>say(r&&r.shown?'الفقاعة ظاهرة ✓':'الفقاعة مخفية')).catch(()=>say('فعّل صلاحية العرض فوق التطبيقات الأول'))}
+    return}
   if(d.rn){ui.rn=+d.rn;const v=$('#repView');if(v){const y=v.scrollTop;openReport();v.scrollTop=y}return}
   if(d.chr){ui.ch.range=+d.chr;drawCharts();return}
   /*rm*/
@@ -1678,9 +1808,12 @@ document.addEventListener('input',e=>{
     if(!SHARED[k]&&k!=='target'&&ui.side!=='h'&&!has(r.target)&&defTarget(ui.open,ui.side)>0)r.target=String(defTarget(ui.open,ui.side));
     if(el.value==='')delete r[k];else r[k]=el.value;
     persistSoon();refreshDay();
+  }else if(el.matches('[data-ph]')){
+    const it=S.pharm.find(x=>x.id===el.dataset.ph);if(it){it.qty=el.value===''?0:num(el.value);persistSoon()}
   }else if(el.matches('[data-ek]')){
     const h=+el.dataset.house,hour=+el.dataset.hour,r=eveRec(ui.date,hour,h,true),k=el.getAttribute('data-ek'),v=el.type==='checkbox'?(el.checked?'1':''):el.value;
     if(v==='')delete r[k];else r[k]=v;
+    if(k==='note'||k==='nfault')syncFault(ui.date,hour,h);
     if(k==='htr'&&el.checked&&!has(r.heaters)){const hi=$('[data-ek="heaters"][data-house="'+h+'"][data-hour="'+hour+'"]');if(hi)hi.focus()}
     persistSoon();ui.hourView?refreshHourView():refreshEveSheet();
   }else if(el.matches('[data-ak]')){
@@ -1714,7 +1847,7 @@ document.addEventListener('change',e=>{
   if(el.matches('[data-ek="tin"],[data-ek="fans"],[data-ek="heaters"],[data-ek="htr"]')){checkEve(+el.dataset.house,+el.dataset.hour);return}
   if(el.matches('[data-k="tmax"]')&&ui.open)checkDayHeat(ui.open,el.value);
 });
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)tick()});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();autoSnap()}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(S.settings.pin&&hiddenAt&&Date.now()-hiddenAt>60000)showLock()});
 
 /* جسر المزامنة مع sync.js */
@@ -1726,7 +1859,8 @@ window.FARM={get:()=>S,
       a.addEventListener('blur',()=>setTimeout(()=>{deferred=false;render()},80),{once:true})}
     else if(!deferred)render()}};
 })();
-render();flash();tick();sclock();if(S.settings.pin)showLock();
+try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(N&&localStorage.getItem('farm_keep')==='1')N.startKeepAlive()}catch(e){}
+render();flash();tick();sclock();autoSnap();if(S.settings.pin)showLock();
 setInterval(tick,15000);
 })();
 </script>

@@ -11,7 +11,7 @@ const CFG = {
 const B = 'https://www.gstatic.com/firebasejs/10.14.1/';
 const COL = 'farm';
 const OBJK = ['days', 'eve', 'todo', 'feedEng', 'feedCrew', 'crewMod', 'evx', 'copied', 'handover']; // كلها مفاتيحها تبدأ بتاريخ
-const LISTK = ['treat', 'alerts', 'issues'];
+const LISTK = ['treat', 'alerts', 'issues', 'pharm'];
 const LOCAL_SET = ['pin', 'pinQ', 'pinA', 'lastBackup', 'sound', 'wake']; // إعدادات خاصة بكل جهاز (و fired كمان محلي)
 const LSK = 'farm_sync_v1', BKK = 'farm_prelink_backup_v1';
 
