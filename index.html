@@ -316,6 +316,73 @@ input.bad{border-color:var(--bad)!important;background:var(--badbg)}
 
 .noterow{display:flex;gap:8px;align-items:center;margin-top:8px}.noterow input[type=text]{flex:1;margin:0}.sw.flt{white-space:nowrap}
 .ph-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.ph-row:last-child{border-bottom:0}.ph-row b{display:block}.ph-row input{width:84px;text-align:center}.ph-low{color:var(--bad)}
+/* ===== v32 skin: "غرفة تحكم المزرعة" ===== */
+:root{
+  --bg:#F3F0E8; --surface:#FFFFFF; --surface2:#F1EDE2; --fg:#14211B; --muted:#68746B; --line:#E3DDCE;
+  --brand:#14634B; --brand-fg:#FFFFFF; --brand-soft:#DCEBE2;
+  --hero:#07261C; --hero2:#165F49; --hero-fg:#F4F7F1; --gold:#E3AC33;
+  --ok:#2A7A39; --okbg:#E1F1E3; --warn:#96590A; --warnbg:#FFF1D6; --bad:#B3261E; --badbg:#FCE4E1; --info:#1D5F8A; --infobg:#E0EDF6;
+  --r:20px;
+  --sh1:0 1px 2px rgba(20,33,27,.05),0 12px 28px -18px rgba(20,33,27,.35);
+  --sh2:0 2px 6px rgba(20,33,27,.08),0 18px 40px -16px rgba(20,33,27,.45);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#09100D; --surface:#111B16; --surface2:#19261F; --fg:#E8EFE9; --muted:#93A399; --line:#223229;
+    --brand:#4FC596; --brand-fg:#04221A; --brand-soft:#173628;
+    --hero:#061A13; --hero2:#0F3F30; --hero-fg:#EAF3EC; --gold:#EBBB55;
+    --ok:#7CCB82; --okbg:#15301A; --warn:#F0B04A; --warnbg:#38290F; --bad:#FF8A80; --badbg:#3C1B18; --info:#7FBCE6; --infobg:#14303F;
+    --sh1:0 1px 2px rgba(0,0,0,.4),0 14px 30px -18px rgba(0,0,0,.8);
+    --sh2:0 2px 8px rgba(0,0,0,.5),0 20px 44px -16px rgba(0,0,0,.9);
+  }
+}
+body{background:var(--bg);letter-spacing:.1px;padding-bottom:calc(112px + env(safe-area-inset-bottom,0px))}
+.hero{position:relative;overflow:hidden;border-radius:0 0 34px 34px;box-shadow:0 18px 40px -22px rgba(4,30,22,.8);
+  background:radial-gradient(120% 90% at 100% 0%,rgba(227,172,51,.20),transparent 55%),radial-gradient(90% 70% at 0% 100%,rgba(79,197,150,.16),transparent 60%),linear-gradient(165deg,var(--hero2),var(--hero))}
+.hero::after{content:"";position:absolute;inset-inline-start:-60px;top:-70px;width:220px;height:220px;border-radius:50%;border:1.5px solid rgba(255,255,255,.07);box-shadow:0 0 0 28px rgba(255,255,255,.03),0 0 0 58px rgba(255,255,255,.02);pointer-events:none}
+.hero>.wrap{position:relative;z-index:1}
+.logo{border-radius:15px;border:0;box-shadow:0 6px 16px -6px rgba(0,0,0,.55);background:transparent}
+.ht h1{font-size:22px;letter-spacing:.2px}
+.ht .by{color:var(--gold);font-weight:600;letter-spacing:.3px}
+.bell{border-radius:15px;background:rgba(255,255,255,.10);backdrop-filter:blur(6px)}
+.datebar input,.datebar button{border-radius:14px;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.14)}
+.shiftseg{background:rgba(0,0,0,.22);border-radius:16px;padding:4px}
+.shiftseg button{border-radius:13px;transition:background .18s,color .18s}
+.shiftseg button[aria-pressed="true"]{background:linear-gradient(180deg,#fff,#EEF3EA);color:var(--hero);box-shadow:0 6px 14px -8px rgba(0,0,0,.6)}
+.ring{background:conic-gradient(var(--gold) calc(var(--p)*1%),rgba(255,255,255,.14) 0);box-shadow:0 0 28px -8px rgba(227,172,51,.45)}
+.ring::before{background:linear-gradient(160deg,var(--hero2),var(--hero))}
+.sum .big{letter-spacing:-.5px}
+.card,.box,.hc{border:1px solid transparent;border-radius:var(--r);box-shadow:var(--sh1);background:var(--surface)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .card,:root:not([data-theme="light"]) .box,:root:not([data-theme="light"]) .hc{border-color:var(--line)}}
+.box.k{border-inline-start:0;position:relative}
+.box.k::before,.box.g::before{content:"";position:absolute;inset-block:14px;inset-inline-start:0;width:4px;border-radius:0 4px 4px 0;background:var(--brand)}
+.box.g::before{background:var(--gold)}
+.card>h3,.box>h3{font-size:14px;letter-spacing:.3px}
+.sec-t h2{position:relative;padding-inline-start:12px}
+.sec-t h2::before{content:"";position:absolute;inset-inline-start:0;top:.28em;bottom:.28em;width:4px;border-radius:4px;background:linear-gradient(var(--gold),var(--brand))}
+input[type=text],input[type=number],input[type=date],input[type=time],select,textarea{border-radius:14px;border:1.5px solid var(--line);background:var(--surface);min-height:50px;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--brand);box-shadow:0 0 0 4px color-mix(in srgb,var(--brand) 18%,transparent)}
+.btn{border-radius:14px;min-height:48px;border:1.5px solid var(--line);background:var(--surface);transition:transform .12s,box-shadow .15s,background .15s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 88%,#fff),var(--brand));border-color:transparent;box-shadow:0 10px 20px -12px var(--brand)}
+.btn.danger{border-color:color-mix(in srgb,var(--bad) 45%,transparent)}
+.pill{background:var(--surface2);letter-spacing:.2px}
+.tile{border-radius:16px;background:var(--surface2)}
+.alert{border-radius:16px;box-shadow:var(--sh1);border-width:1px}
+.hc .n{background:linear-gradient(160deg,var(--brand),color-mix(in srgb,var(--brand) 55%,var(--gold)));-webkit-background-clip:text;background-clip:text;color:transparent}
+details.card>summary{font-weight:700;cursor:pointer;padding:2px 0}
+@media (max-width:759px){
+  nav.dock{left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom,0px));border:1px solid var(--line);border-radius:28px;padding:6px;
+    background:color-mix(in srgb,var(--surface) 84%,transparent);-webkit-backdrop-filter:blur(20px) saturate(1.4);backdrop-filter:blur(20px) saturate(1.4);box-shadow:var(--sh2)}
+  nav.dock #nav{gap:2px}
+  nav.dock button{min-height:56px;border-radius:22px;font-size:11.5px;transition:background .2s,color .2s}
+  nav.dock button span{font-size:21px;filter:saturate(.9)}
+  nav.dock button[aria-current="page"]{background:linear-gradient(180deg,color-mix(in srgb,var(--brand) 16%,transparent),color-mix(in srgb,var(--brand) 9%,transparent));color:var(--brand)}
+  nav.dock button[aria-current="page"] span{transform:translateY(-1px) scale(1.08)}
+  #syncPill{bottom:calc(92px + env(safe-area-inset-bottom,0px))!important}
+}
+#syncPill{border-radius:99px;box-shadow:var(--sh1);backdrop-filter:blur(8px)}
+.rpage{background:#fff;color:#111}
 </style>
 </head>
 <body>
@@ -326,7 +393,7 @@ input.bad{border-color:var(--bad)!important;background:var(--badbg)}
 <script>
 (function(){
 'use strict';
-const KEY='dakahlia_farm_v1', VER=18;
+const KEY='dakahlia_farm_v1', VER=32;
 const HOURS=[18,19,20,21,22,23,0,1,2,3,4,5,6];
 const pad=n=>(n<10?'0':'')+n;
 const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -360,7 +427,7 @@ const DEFTASKS=()=>[
  {id:'t10',label:'نزول العلف مع مهندس التعليف',shift:'eve',perHouse:false,times:[],on:true}];
 const DEF=()=>({settings:{houses:mkHouses(),hot:30,tray:30,sound:true,
   steps:[{t:26,p:25},{t:28,p:50},{t:30,p:75},{t:32,p:100}],
-  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,flock:{breed:'روس 308',recvDate:'2026-06-03',recvW:'17',recvD:'2'},hegM:'',hegF:'',hegSource:'all',workers:[],crews:[],crewRot:{date:'',idx:0},penalties:[],wake:{on:false,time:'23:30'},pin:'',pinQ:'',pinA:'',lastBackup:0,
+  curtain:[{f:4,cm:35},{f:6,cm:50},{f:8,cm:65},{f:10,cm:80}],curtainPer:8,flock:{breed:'Ross 308',recvDate:'2026-07-21',recvW:'24',recvD:'1'},hegM:'',hegF:'',hegSource:'all',workers:[],crews:[],crewRot:{date:'',idx:0},penalties:[],wake:{on:false,time:'23:30'},pin:'',pinQ:'',pinA:'',lastBackup:0,
   tasks:DEFTASKS(),engineers:[],rot:{date:'',idx:0}},
   days:{},eve:{},treat:[],alerts:[],fired:{},todo:{},feedEng:{},feedCrew:{},crewMod:{},evx:{},copied:{},issues:[],handover:{},pharm:[]});
 let S,storageOK=true;
@@ -377,7 +444,8 @@ function load(){
   H.forEach(h=>{['hensC','hensF','roosC','roosF','tgtC','tgtF'].forEach(k=>{if(h[k]===undefined)h[k]=''});if(h.show===undefined)h.show=true});
   if(!Array.isArray(S.issues))S.issues=[];
   if(!Array.isArray(S.pharm))S.pharm=[];
-  if(!S.settings.flock||typeof S.settings.flock!=='object')S.settings.flock={breed:'',recvDate:'',recvW:'',recvD:''};
+  if(!S.settings.flock||typeof S.settings.flock!=='object')S.settings.flock={breed:'Ross 308',recvDate:'2026-07-21',recvW:'24',recvD:'1'};
+  {const f=S.settings.flock;if((f.recvDate==='2026-06-03'&&f.recvW==='17'&&f.recvD==='2')||(f.recvDate==='2026-07-23'&&f.recvW==='0'&&f.recvD==='0')||(!f.recvDate&&!f.recvW)){f.breed=(!f.breed||f.breed==='روس 308')?'Ross 308':f.breed;f.recvDate='2026-07-21';f.recvW='24';f.recvD='1'}}
   if(!S.handover||typeof S.handover!=='object')S.handover={};
   if(!Array.isArray(S.settings.tasks))S.settings.tasks=DEFTASKS();
   if(!Array.isArray(S.settings.engineers))S.settings.engineers=[];
@@ -400,7 +468,7 @@ function persistSoon(){clearTimeout(saveT);saveT=setTimeout(()=>{persist();flash
 function flash(){const e=$('#savedmsg');if(e){e.textContent=storageOK?'تم الحفظ ✓':'التخزين غير متاح، انسخ نسخة احتياطية من السجل';e.style.color=storageOK?'':'var(--bad)'}}
 load();
 
-const ui={pinEdit:false,rcv:null,ledger:null,curHr:null,ch:{scope:0,range:14},rn:7,tab:'home',shift:new Date().getHours()>=17||new Date().getHours()<6?'eve':'day',date:(new Date().getHours()<6?addDays(today(),-1):today()),open:null,side:'c',hourView:false,
+const ui={pinEdit:false,rcv:null,ledger:null,curHr:null,ch:{scope:0,range:14},rn:7,tab:'home',shift:new Date().getHours()>=18||new Date().getHours()<6?'eve':'day',date:(new Date().getHours()<6?addDays(today(),-1):today()),open:null,side:'c',hourView:false,
   hour:(()=>{const i=HOURS.indexOf(new Date().getHours());return i<0?0:i})(),all:{},panel:false,handover:false};
 const hname=id=>S.settings.houses[id-1].name||('عنبر '+id);
 
@@ -970,9 +1038,9 @@ function fmtNote(t){
 }
 function flockAge(date){
   const f=S.settings.flock||{};if(!f.recvDate||!has(f.recvW))return null;
-  const d=diffDays(f.recvDate,date)+num(f.recvW)*7+num(f.recvD);if(d<0)return null;
-  const w=num(f.recvW),dd=num(f.recvD);
-  return {w:Math.floor(d/7),d:d%7,rw:w,rd:dd,breed:f.breed||''};
+  const since=diffDays(f.recvDate,date);if(since<0)return null;
+  const tot=num(f.recvW)*7+num(f.recvD)+since;
+  return {w:Math.floor(tot/7),d:tot%7,rw:Math.floor(since/7),rd:since%7,aw:num(f.recvW),ad:num(f.recvD),tot:tot,breed:f.breed||''};
 }
 const ageTxt=(w,d)=>w+' أسبوع'+(d?' و '+d+(d===1?' يوم':d===2?' يومين':' أيام'):'');
 function flockLine(date){
@@ -1018,7 +1086,7 @@ function renderTList(){
     if(t.done){st='<span class="pill ok">تم</span>';cls='done'}else if(diff<0){st='<span class="pill bad">متأخر '+human(-diff)+'</span>';cls='late'}else st='<span class="pill warn">بعد '+human(diff)+'</span>';
     let qs='';for(const id in t.q)if(has(t.q[id]))qs+='<span>'+esc(hname(+id))+': '+esc(t.q[id])+' '+esc(t.unit)+'</span>';
     return '<div class="titem '+cls+'"><div class="row spread"><b>'+(t.kind==='vaccine'?'💉 ':'💊 ')+esc(t.name)+'</b>'+st+'</div><div class="small muted">'+t.date+' · '+t.time+(num(t.remind)>0?' · تنبيه قبلها '+human(num(t.remind)):'')+'</div><div class="qty">'+(qs||'<span>بدون كميات</span>')+'</div>'+(t.note?'<div class="small">'+esc(t.note)+'</div>':'')+
-     '<div class="row">'+(t.done?'<button class="btn sm" data-tundo="'+t.id+'">إرجاع</button>':'<button class="btn sm primary" data-tdone="'+t.id+'">تم التنفيذ</button>')+'<button class="btn sm danger" data-confirm="tdel:'+t.id+'">حذف</button></div></div>';
+     '<div class="row">'+(t.done?'<button class="btn sm" data-tundo="'+t.id+'">إرجاع</button>':'<button class="btn sm primary" data-tdone="'+t.id+'">تم التنفيذ</button>')+'<button class="btn sm danger" data-confirm="tdel:'+t.id+'">حذف</button><button class="btn sm" data-aisum="'+t.id+'">🤖 خلاصة</button></div><div id="aisum'+t.id+'"></div></div>';
   }).join('');
 }
 
@@ -1082,13 +1150,13 @@ function flockCardHTML(){
   return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🐔 بيانات القطيع</h3><div class="g1" style="margin-top:10px">'+
    '<label class="f"><span>نوع القطيع (السلالة)</span><input type="text" data-path="flock.breed" value="'+esc(f.breed||'')+'"></label>'+
    '<label class="f"><span>تاريخ الاستلام</span><input type="date" data-path="flock.recvDate" value="'+esc(f.recvDate||'')+'"></label>'+
-   '<div class="g2"><label class="f"><span>عمر الاستلام (أسابيع)</span><input type="number" inputmode="numeric" data-path="flock.recvW" data-type="str" value="'+esc(f.recvW||'')+'"></label><label class="f"><span>+ أيام</span><input type="number" inputmode="numeric" data-path="flock.recvD" data-type="str" value="'+esc(f.recvD||'')+'"></label></div>'+
-   (a?'<div class="small">عمر القطيع النهارده: <b>'+ageTxt(a.w,a.d)+'</b></div>':'')+'</div></div>';
+   '<div class="g2"><label class="f"><span>عمر القطيع وقت الاستلام (أسابيع)</span><input type="number" inputmode="numeric" data-path="flock.recvW" data-type="str" value="'+esc(f.recvW||'')+'"></label><label class="f"><span>+ أيام</span><input type="number" inputmode="numeric" data-path="flock.recvD" data-type="str" value="'+esc(f.recvD||'')+'"></label></div>'+
+   (a?'<div class="small">إجمالي عمر القطيع النهارده: <b>'+ageTxt(a.w,a.d)+'</b> · منذ الاستلام: <b>'+ageTxt(a.rw,a.rd)+'</b></div>':'')+'</div></div>';
 }
 function nativeCardHTML(){
   const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(!N)return '';
   return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">📱 تشغيل الأندرويد</h3><div class="small muted" style="margin:6px 0">عشان النظام ما يقفلش التطبيق في الخلفية، فعّل الخطوات دي بالترتيب.</div>'+
-   '<div class="g1"><button class="btn" data-act="nkeep">1) تشغيل الخدمة المستمرة (إشعار دائم)</button><button class="btn" data-act="nbatt">2) استثناء التطبيق من توفير البطارية</button><button class="btn" data-act="novl">3) السماح بالظهور فوق التطبيقات</button><button class="btn" data-act="nbub">4) إظهار / إخفاء الفقاعة العائمة</button><div class="small" id="nMsg"></div></div></div>';
+   '<div class="g1"><button class="btn" data-act="nkeep">1) تشغيل الخدمة المستمرة (إشعار دائم)</button><button class="btn" data-act="nbatt">2) استثناء التطبيق من توفير البطارية</button><button class="btn" data-act="novl">3) السماح بالظهور فوق التطبيقات</button><button class="btn" data-act="nbub">4) إظهار / إخفاء الفقاعة العائمة (اضغطها مطولاً لترتيب الأدوات)</button><div class="small" id="nMsg"></div></div></div>';
 }
 function setHTML(){
   const s=S.settings;
@@ -1112,7 +1180,7 @@ function setHTML(){
    '<div class="row" style="margin-top:10px"><button class="btn" id="wake">إبقاء الشاشة شغالة</button><span class="small muted" id="wakeMsg"></span></div>'+
    '<div class="alert info" style="margin-top:10px"><p class="small">التنبيهات بتشتغل والتطبيق مفتوح على الشاشة. لو اتقفل، التذكير اللي فات بيظهر أول ما تفتحه.</p></div></div>'+
    workersSetHTML()+
-   flockCardHTML()+nativeCardHTML()+pinCardHTML()+
+   flockCardHTML()+aiCardHTML()+nativeCardHTML()+pinCardHTML()+
    '<div class="card"><h3 style="font-size:17px;color:var(--fg)">التحديث</h3><div class="row" style="margin-top:8px"><button class="btn" id="upd">تحديث التطبيق لآخر إصدار</button><span class="small muted" id="updMsg">الإصدار '+VER+' (بياناتك مش بتتمسح)</span></div></div>'+
    '<div class="foot">إعداد وتصميم: <b>م/ عمرو مدحت</b><br><span id="ver">الإصدار '+VER+'</span></div></div>';
 }
@@ -1504,7 +1572,7 @@ function evxRec(date,h,create){
 }
 const t2m=t=>{const m=/^(\d{1,2}):(\d{2})/.exec(t||'');return m?+m[1]*60+ +m[2]:null};
 function runMin(x){const a=t2m(x.a),b=t2m(x.b);if(a===null||b===null)return 0;return b>=a?b-a:b+1440-a}
-const parseDur=v=>{v=String(v==null?'':v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));const m=/^(\d+)(?:[:.,،٫](\d{1,2}))?$/.exec(v);if(!m)return null;const mi=m[2]?+m[2]:0;if(mi>59)return null;return +m[1]*60+mi};
+const parseDur=v=>{v=String(v==null?'':v).trim().replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d));if(/^\d+$/.test(v)){const mm=+v.slice(-2),hh=v.length>2?+v.slice(0,-2):0;return mm>59?null:hh*60+mm}const m=/^(\d+)(?:[:.,،٫](\d{1,2}))?$/.exec(v);if(!m)return null;const mi=m[2]?+m[2]:0;if(mi>59)return null;return +m[1]*60+mi};
 const durTxt=m=>m===null||m===undefined?'':Math.floor(m/60)+':'+pad(m%60);
 function heatInfo(r){const a=parseDur(r.h1),b=r.hd==='1'?parseDur(r.h2):a;return {a:a,b:b,diff:r.hd==='1',sum:(a||0)+(b||0)}}
 const heatMin=r=>heatInfo(r).sum;
@@ -1520,8 +1588,8 @@ function reshow(){const sh=$('.sheet'),y=sh?sh.scrollTop:0;showSheet();const n=$
 function xSheetHTML(){
   const hs=[1,2,3,4,5,6,7,8];
   const tbl=(title,hint,field,unit)=>'<div class="box"><h3>'+title+'</h3><div class="small muted">'+hint+'</div><div class="xt">'+hs.map(h=>{const r=evxRec(ui.date,h);return '<label class="xr"><span>'+esc(hname(h))+'</span><input type="number" inputmode="decimal" data-xk="'+field+'" data-house="'+h+'" value="'+esc(has(r[field])?r[field]:'')+'"><em>'+unit+'</em></label>'}).join('')+'</div></div>';
-  const dinp=(k,h,lbl,v)=>'<label class="f"><span>'+lbl+'</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="2:15" data-xh="'+k+':'+h+'" value="'+esc(has(v)?v:'')+'"'+(has(v)&&parseDur(v)===null?' class="bad"':'')+'></label>';
-  const heat='<div class="box"><h3>🔥 تشغيل الهياتر</h3><div class="small muted">كل عنبر فيه هيتران. اكتب إجمالي المدة اللي اشتغلها الهيتر في اليوم بالساعة والدقيقة (مثلًا 2:15 يعني ساعتين وربع). لو الهيتران نفس المدة اكتبها مرة واحدة.</div>'+hs.map(h=>{const r=evxRec(ui.date,h),d=r.hd==='1';
+  const dinp=(k,h,lbl,v)=>'<label class="f"><span>'+lbl+'</span><input type="text" inputmode="decimal" autocomplete="off" placeholder="مثال: 215 = 2:15" data-xh="'+k+':'+h+'" value="'+esc(has(v)?v:'')+'"'+(has(v)&&parseDur(v)===null?' class="bad"':'')+'></label>';
+  const heat='<div class="box"><h3>🔥 تشغيل الهياتر</h3><div class="small muted">كل عنبر فيه هيتران. اكتب إجمالي المدة اللي اشتغلها الهيتر في اليوم أرقام بس من غير نقطتين: آخر رقمين دقايق والباقي ساعات (215 = ساعتين و15 دقيقة، 45 = 45 دقيقة). لو الهيتران نفس المدة اكتبها مرة واحدة.</div>'+hs.map(h=>{const r=evxRec(ui.date,h),d=r.hd==='1';
     return '<div class="xh"><div class="row spread"><b>'+esc(hname(h))+'</b><span class="pill'+(runsTxt(r)?' ok':'')+'" id="xtot'+h+'">'+(esc(runsTxt(r))||'—')+'</span></div>'+
      '<label class="sw" style="justify-content:flex-start"><input type="checkbox" data-xd="'+h+'"'+(d?'':' checked')+'><span>الهيتران بنفس المدة</span></label>'+
      (d?'<div class="g2">'+dinp('h1',h,'هيتر 1',r.h1)+dinp('h2',h,'هيتر 2',r.h2)+'</div>':dinp('h1',h,'مدة تشغيل كل هيتر (ساعة:دقيقة)',r.h1))+'</div>'}).join('')+'</div>';
@@ -1751,7 +1819,7 @@ document.addEventListener('click',e=>{
     if(d.act==='nkeep'){N.startKeepAlive().then(()=>{try{localStorage.setItem('farm_keep','1')}catch(e){}say('الخدمة المستمرة شغالة ✓')}).catch(()=>say('تعذّر التشغيل'))}
     if(d.act==='nbatt'){N.requestBatteryExemption().then(()=>say('اختار "السماح" في الشاشة اللي ظهرت')).catch(()=>say('تعذّر فتح الإعداد'))}
     if(d.act==='novl'){N.requestOverlay().then(()=>say('فعّل "السماح بالعرض فوق التطبيقات" ثم ارجع')).catch(()=>say('تعذّر فتح الإعداد'))}
-    if(d.act==='nbub'){N.toggleBubble().then(r=>say(r&&r.shown?'الفقاعة ظاهرة ✓':'الفقاعة مخفية')).catch(()=>say('فعّل صلاحية العرض فوق التطبيقات الأول'))}
+    if(d.act==='nbub'){N.toggleBubble().then(r=>{try{localStorage.setItem('farm_bubble_auto',r&&r.shown?'1':'0')}catch(e){}say(r&&r.shown?'الفقاعة ظاهرة ✓ — اضغطها لفتح الأدوات، واضغط مطولاً لترتيبها':'الفقاعة مخفية')}).catch(()=>say('فعّل صلاحية العرض فوق التطبيقات الأول'))}
     return}
   if(d.rn){ui.rn=+d.rn;const v=$('#repView');if(v){const y=v.scrollTop;openReport();v.scrollTop=y}return}
   if(d.chr){ui.ch.range=+d.chr;drawCharts();return}
@@ -1850,16 +1918,83 @@ document.addEventListener('change',e=>{
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();autoSnap()}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(S.settings.pin&&hiddenAt&&Date.now()-hiddenAt>60000)showLock()});
 
+/* ===== المساعد الذكي (Gemini - مفتاحك محلي على جهازك فقط) ===== */
+const AIK='farm_ai_key',AIM='farm_ai_model';let aiLast='';
+const lsg=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}},lss=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
+const AISYS='إنت مساعد خبير لمزرعة أمهات دجاج تسمين (Breeder) سلالة Ross 308 في المنيا بمصر. رد بالعامية المصرية المبسطة وبإيجاز (نقاط قصيرة). ممنوع تحديد جرعات أدوية أو تشخيص قاطع؛ للعلاج والجرعات انصح بمراجعة الطبيب البيطري ونشرة المنتج. وضّح أي معلومة مش متأكد منها.';
+async function aiModel(k){let m=lsg(AIM);if(m)return m;
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(k));
+  if(!r.ok)throw new Error('المفتاح غير صالح ('+r.status+')');
+  const j=await r.json();
+  const L=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).indexOf('generateContent')>=0&&/gemini-[\d.]+-flash$/.test(x.name.replace('models/',''))).map(x=>x.name.replace('models/','')).sort().reverse();
+  m=L[0]||'gemini-flash-latest';lss(AIM,m);return m}
+async function aiAsk(prompt){const k=lsg(AIK);if(!k)throw new Error('ضيف مفتاح Gemini الأول من الإعدادات');
+  const m=await aiModel(k);
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:AISYS}]},contents:[{role:'user',parts:[{text:prompt}]}]})});
+  if(!r.ok){if(r.status===404)lss(AIM,'');throw new Error(r.status===429?'وصلت للحد المجاني اليومي، جرّب بعدين':'تعذّر الاتصال ('+r.status+')')}
+  const j=await r.json(),c=j.candidates&&j.candidates[0];
+  return(c&&c.content&&c.content.parts||[]).map(p=>p.text||'').join('').trim()||'مفيش رد'}
+async function weatherTxt(){try{
+  const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=28.11&longitude=30.75&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Africa%2FCairo&forecast_days=2');
+  const j=await r.json(),c=j.current,d=j.daily;
+  return 'طقس المنيا الآن: '+c.temperature_2m+'° رطوبة '+c.relative_humidity_2m+'% رياح '+c.wind_speed_10m+' كم/س. النهارده '+d.temperature_2m_min[0]+'–'+d.temperature_2m_max[0]+'°، بكره '+d.temperature_2m_min[1]+'–'+d.temperature_2m_max[1]+'°.'}catch(e){return 'الطقس غير متاح'}}
+function aiOutHTML(t){return t?'<div class="aiout"><div style="white-space:pre-wrap;line-height:1.8">'+esc(t)+'</div><div class="small muted" style="margin-top:8px">⚠️ إرشادات عامة وليست بديل للطبيب البيطري · م/ عمرو مدحت</div></div>':''}
+function aiCardHTML(){const k=lsg(AIK);
+  return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🤖 المساعد الذكي (مجاني)</h3>'+
+   '<div class="small muted" style="margin:6px 0">اعمل مفتاح مجاني من aistudio.google.com ← Get API key، وحطه هنا. بيتخزن على جهازك بس.</div>'+
+   '<div class="row"><input type="password" id="aiKey" placeholder="'+(k?'المفتاح محفوظ ✓ (اكتب جديد للتغيير)':'مفتاح Gemini')+'" style="flex:1" autocomplete="off"><button class="btn sm primary" data-ai="key">حفظ</button></div>'+
+   '<textarea id="aiQ" rows="3" placeholder="اسأل عن الحرارة، التهوية، العلف، الهياتر، الطقس…" style="width:100%;margin-top:10px"></textarea>'+
+   '<div class="row" style="margin-top:8px"><button class="btn primary" data-ai="ask" style="flex:1">اسأل</button><button class="btn" data-ai="adv" style="flex:1">🌦️ نصيحة الوردية والطقس</button></div>'+
+   '<div id="aiOut">'+aiOutHTML(aiLast)+'</div></div>';}
+async function aiRun(btn,fn){const o=$('#aiOut');if(o)o.innerHTML='<div class="small muted">⏳ بفكر…</div>';
+  try{aiLast=await fn()}catch(e){aiLast='⚠️ '+e.message}
+  const o2=$('#aiOut');if(o2)o2.innerHTML=aiOutHTML(aiLast)}
+function aiContext(){const dt=ui.date||today(),d=eveDay(dt),a=flockAge(addDays(dt,1));
+  return 'تاريخ الوردية '+dt+(a?'، عمر القطيع '+ageTxt(a.w,a.d):'')+'. متوسط حرارة داخل '+(d.avgT==null?'—':d.avgT)+'° وخارج '+(d.outT==null?'—':d.outT)+'° ورطوبة '+(d.hum==null?'—':Math.round(d.hum))+'%.'}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-ai],[data-aisum]');if(!b)return;
+  if(b.dataset.aisum){const t=S.treat.find(x=>x.id===b.dataset.aisum);if(!t)return;
+    const box=document.getElementById('aisum'+t.id),ck='farm_ai_c:'+normN(t.name);
+    box.innerHTML='<div class="small muted">⏳ بفكر…</div>';
+    let txt=lsg(ck);
+    if(!txt){try{txt=await aiAsk('لخّص باختصار عن '+(t.kind==='vaccine'?'تحصين':'دواء')+' "'+t.name+'" في أمهات التسمين: الغرض، طريقة الإعطاء المعتادة، احتياطات، أعراض جانبية محتملة. بدون ذكر جرعات.');lss(ck,txt)}catch(er){txt='⚠️ '+er.message}}
+    box.innerHTML=aiOutHTML(txt);return}
+  const k=b.dataset.ai;
+  if(k==='key'){const v=($('#aiKey').value||'').trim();if(!v)return;lss(AIK,v);lss(AIM,'');aiLast='✓ اتحفظ المفتاح';render();return}
+  if(k==='ask'){const q=($('#aiQ').value||'').trim();if(!q)return;aiRun(b,()=>aiAsk(aiContext()+'\n'+q));return}
+  if(k==='adv'){aiRun(b,async()=>aiAsk(aiContext()+'\n'+await weatherTxt()+'\nإدّيني نصايح قصيرة لضبط التهوية والمراوح والهياتر والتبريد والعلف والمياه للوردية الجاية.'))}
+});
+
 /* جسر المزامنة مع sync.js */
 (function(){let deferred=false;
 window.FARM={get:()=>S,
+  quick(list){
+    let seen=[];try{seen=JSON.parse(localStorage.getItem('farm_qseen')||'[]')}catch(e){}
+    list=list.filter(q=>!(q.id&&seen.includes(q.id)));if(!list.length)return;
+    list.forEach(q=>{if(q.id)seen.push(q.id)});try{localStorage.setItem('farm_qseen',JSON.stringify(seen.slice(-300)))}catch(e){}
+    list.forEach(q=>{try{
+      if(q.t==='eve'){const hr=+q.hour,hs=+q.house,r=eveRec(q.date,hr,hs,true);
+        ['tin','tout','hum','fans'].forEach(k=>{if(q[k]!==undefined&&q[k]!==null&&String(q[k])!=='')r[k]=String(q[k])});
+        if(q.note){r.note=r.note?r.note+' | '+q.note:q.note}
+        if(q.fault)r.nfault='1';
+        syncFault(q.date,hr,hs)}
+      else if(q.t==='silo'||q.t==='water'){evxRec(q.date,+q.house,true)[q.t]=String(q.v)}
+      else if(q.t==='heater'){const r=evxRec(q.date,+q.house,true);r.h1=q.h1;if(q.hd){r.hd='1';r.h2=q.h2||q.h1}else{r.hd='';delete r.h2}}
+    }catch(e){}});
+    persist();window.FARM.refresh();flashMsg('تم استلام '+list.length+' تسجيل من الفقاعة');
+  },
   refresh(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}load();
     const a=document.activeElement;
     if(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)&&!a.closest('#syncLogin')&&!deferred){deferred=true;
       a.addEventListener('blur',()=>setTimeout(()=>{deferred=false;render()},80),{once:true})}
     else if(!deferred)render()}};
 })();
-try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;if(N&&localStorage.getItem('farm_keep')==='1')N.startKeepAlive()}catch(e){}
+try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative;
+  if(N&&localStorage.getItem('farm_keep')==='1')N.startKeepAlive();
+  if(N&&localStorage.getItem('farm_bubble_auto')==='1')N.ensureBubble().catch(()=>{});
+  if(N){const drain=()=>N.drainQuick().then(r=>{try{const a=JSON.parse((r&&r.items)||'[]');if(a.length)window.FARM.quick(a)}catch(e){}}).catch(()=>{});
+    N.addListener('quick',drain);drain();document.addEventListener('visibilitychange',()=>{if(!document.hidden)drain()})}}catch(e){}
+try{const AP=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.App;if(AP)AP.addListener('backButton',()=>{const c=document.querySelector('.rep-close,[data-close],#rclose,.sheet-close');if(c){c.click();return}if(ui.tab!=='home'){ui.tab='home';render();return}AP.minimizeApp()})}catch(e){}
 render();flash();tick();sclock();autoSnap();if(S.settings.pin)showLock();
 setInterval(tick,15000);
 })();
