@@ -21,13 +21,18 @@ jobs:
         run: f=$(for x in farm-android*.zip; do echo "$(git log -1 --format=%ct -- "$x") $x"; done | sort -n | tail -1 | cut -d' ' -f2-) && echo "Using $f" && unzip -q "$f" -d app
       - name: Install and add Android
         working-directory: app
+        env:
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
         run: npm install && npx cap add android && bash native/apply.sh && npx cap sync android
       - name: Signing key
         run: mkdir -p ~/.android && cp app/native/debug.keystore ~/.android/debug.keystore
       - name: Build APK
         working-directory: app/android
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: Verify signing
+        continue-on-error: true
+        run: A=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1) && $A verify --print-certs app/android/app/build/outputs/apk/debug/app-debug.apk | tee cert.txt
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create apk-${{ github.run_number }} app/android/app/build/outputs/apk/debug/app-debug.apk --title "APK ${{ github.run_number }}" --notes "farm app"
+        run: gh release create apk-${{ github.run_number }} app/android/app/build/outputs/apk/debug/app-debug.apk --title "APK ${{ github.run_number }}" --notes "$(grep -i 'SHA-256' cert.txt | head -1)"
