@@ -393,7 +393,7 @@ details.card>summary{font-weight:700;cursor:pointer;padding:2px 0}
 <script>
 (function(){
 'use strict';
-const KEY='dakahlia_farm_v1', VER=35;
+const KEY='dakahlia_farm_v1', VER=41;
 const HOURS=[18,19,20,21,22,23,0,1,2,3,4,5,6];
 const pad=n=>(n<10?'0':'')+n;
 const isoDate=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
@@ -703,7 +703,7 @@ function head(title,full,inner){
 }
 
 /* ---------- home ---------- */
-function homeHTML(){
+function homeHTML0(){
   const ev=ui.shift==='eve',date=ui.date;
   let ringP,ringTxt,big,lbl,mini,cards='';
   if(ev){
@@ -1003,10 +1003,27 @@ const nextHour=()=>pad(new Date(Date.now()+3600000).getHours())+':00';
 function human(min){if(min<60)return min+' دقيقة';if(min<1440){const h=Math.floor(min/60),m=min%60;return h+' ساعة'+(m?' و '+m+' دقيقة':'')}return Math.floor(min/1440)+' يوم'}
 /* ---------- pharmacy stock ---------- */
 const normN=v=>String(v||'').trim().replace(/\s+/g,' ').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').toLowerCase();
+const fmtD=n=>Number(n).toLocaleString('en-US',{maximumFractionDigits:3});
+const UQ={'مل':['v',1],'لتر':['v',1000],'جم':['m',1],'كجم':['m',1000]};
+function dedCalc(ph,unit,q,ded){let tot=0;for(const k in q){const v=num(q[k]);if(v>0)tot+=v}
+  const R=x=>Math.round(x*10000)/10000;
+  if(has(ded)&&num(ded)>0)return {amt:R(num(ded)),how:'يدوي',tot:tot};
+  const a=UQ[unit],b=UQ[ph.unit];
+  if(a&&b&&a[0]===b[0])return {amt:R(tot*a[1]/b[1]),how:'تحويل وحدات',tot:tot};
+  const pk=ph.pack;if(pk&&a&&UQ[pk.u]&&UQ[pk.u][0]===a[0]&&num(pk.n)>0)return {amt:R(tot*a[1]/(num(pk.n)*UQ[pk.u][1])),how:'سعة العبوة',tot:tot};
+  if(unit==='جرعة'&&ph.unit==='جرعة')return {amt:R(tot),how:'جرعة',tot:tot};
+  return {amt:null,tot:tot}}
+function dedTxt(ph,unit,q,ded){if(!ph)return '';const c=dedCalc(ph,unit,q,ded);
+  if(c.amt===null)return '<span style="color:var(--bad)">مش قادر أحسب الخصم من '+esc(ph.name)+' ('+esc(ph.unit||'')+') — اكتب الخصم اليدوي بوحدة الصيدلية (مثلاً 0.25) أو سعة العبوة في المخزون.</span>';
+  const left=num(ph.qty)-c.amt;
+  return 'الإجمالي '+fmtD(c.tot)+' '+esc(unit)+' ← هيتخصم <b>'+fmtD(c.amt)+' '+esc(ph.unit||'')+'</b> من «'+esc(ph.name)+'» (المتاح '+fmtD(num(ph.qty))+')'+(left<0?' <span style="color:var(--bad)">⚠️ المخزون ناقص</span>':'')}
+function phMv(it,o){if(!Array.isArray(it.mv))it.mv=[];it.mv.push(o);if(it.mv.length>60)it.mv=it.mv.slice(-60)}
+function tPrev(){const el=$('#tPrev');if(!el)return;const ph=S.pharm.find(x=>x.id===$('#tPh').value);if(!ph){el.innerHTML='';return}
+  const q={};$$('[data-q]').forEach(i=>{if(i.value!=='')q[i.getAttribute('data-q')]=i.value});el.innerHTML=dedTxt(ph,$('#tUnit').value,q,$('#tDed').value)}
 function pharmHTML(){
   const L=S.pharm.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
   const rows=L.map(x=>{const low=has(x.min)&&num(x.qty)<=num(x.min),ex=x.exp&&x.exp<today();
-    return '<div class="ph-row"><div><b>'+esc(x.name)+'</b><span class="small muted">'+esc(x.unit||'')+(x.exp?' · صلاحية '+esc(x.exp)+(ex?' (منتهي)':''):'')+(low?' · <span class="ph-low">قرب يخلص</span>':'')+'</span></div>'+
+    return '<div class="ph-row"><div><b>'+esc(x.name)+'</b><span class="small muted">'+esc(x.unit||'')+(x.pack&&x.pack.n?' · العبوة '+esc(x.pack.n)+' '+esc(x.pack.u):'')+(x.exp?' · صلاحية '+esc(x.exp)+(ex?' (منتهي)':''):'')+(low?' · <span class="ph-low">قرب يخلص</span>':'')+'</span></div>'+
      '<input type="number" inputmode="decimal" min="0" step="any" data-ph="'+x.id+'" value="'+esc(x.qty)+'" aria-label="الكمية"><button class="btn sm danger" data-confirm="phdel:'+x.id+'">حذف</button></div>'}).join('');
   const names=L.map(x=>'<option value="'+esc(x.name)+'">').join('');
   return '<details class="card" id="pharm"><summary>💊 مخزون الصيدلية ('+L.length+' صنف)</summary><div class="g1" style="margin-top:12px">'+
@@ -1014,14 +1031,16 @@ function pharmHTML(){
    '<label class="f"><span>اسم الصنف</span><input type="text" id="phName" list="phNames" autocomplete="off" placeholder="مثال: أوكسي تتراسيكلين"><datalist id="phNames">'+names+'</datalist></label>'+
    '<div class="g2"><label class="f"><span>الكمية</span><input type="number" inputmode="decimal" min="0" step="any" id="phQty"></label><label class="f"><span>الوحدة</span><select id="phUnit"><option>عبوة</option><option>زجاجة</option><option>كيس</option><option>علبة</option><option>جرعة</option><option>مل</option><option>لتر</option><option>جم</option><option>كجم</option></select></label></div>'+
    '<div class="g2"><label class="f"><span>تاريخ الصلاحية (اختياري)</span><input type="date" id="phExp"></label><label class="f"><span>حد التنبيه (اختياري)</span><input type="number" inputmode="decimal" min="0" step="any" id="phMin"></label></div>'+
+   '<div class="g2"><label class="f"><span>سعة العبوة (اختياري)</span><input type="number" inputmode="decimal" min="0" step="any" id="phPack" placeholder="مثال: 1000"></label><label class="f"><span>بوحدة</span><select id="phPackU"><option value="">—</option><option>مل</option><option>لتر</option><option>جم</option><option>كجم</option></select></label></div>'+
    '<button class="btn primary" data-act="phadd">إضافة للمخزون</button><div class="small" id="phMsg"></div>'+
    (rows?'<div style="margin-top:6px">'+rows+'</div>':'<div class="empty" style="padding:10px">المخزون فاضي</div>')+
+   (()=>{const m=[];S.pharm.forEach(x=>(x.mv||[]).forEach(v=>m.push(Object.assign({n:x.name,u:x.unit},v))));m.sort((a,b)=>(b.at||0)-(a.at||0));return m.length?'<details><summary class="small">📋 حركات الصيدلية (آخر '+Math.min(30,m.length)+')</summary><div class="small" style="margin-top:6px;line-height:1.9">'+m.slice(0,30).map(v=>esc(v.d)+' · '+esc(v.n)+' · <b style="color:var(--'+(v.a<0?'bad':'ok')+')">'+(v.a>0?'+':'')+fmtD(v.a)+' '+esc(v.u||'')+'</b> · '+esc(v.w||'')).join('<br>')+'</div></details>':''})()+
    '<button class="btn" data-act="phpdf">📄 جرد الصيدلية (PDF)</button></div></details>';
 }
 function pharmReportHTML(){
   const L=S.pharm.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar'));
   return '<div class="rhead"><div><h1>شركة الدقهلية للدواجن</h1><h2>جرد الصيدلية · '+esc(fmtDate(today()))+'</h2></div><div class="rsig">م/ عمرو مدحت<br><span>مهندس إنتاج</span></div></div>'+
-   (L.length?'<table><thead><tr><th>#</th><th>الصنف</th><th>الكمية الموجودة</th><th>الوحدة</th><th>الصلاحية</th></tr></thead><tbody>'+L.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.name)+'</td><td>'+esc(fmtN(num(x.qty)))+'</td><td>'+esc(x.unit||'')+'</td><td>'+esc(x.exp||'—')+'</td></tr>').join('')+'</tbody></table>':'<p>المخزون فاضي</p>')+
+   (L.length?'<table><thead><tr><th>#</th><th>الصنف</th><th>الكمية الموجودة</th><th>الوحدة</th><th>الصلاحية</th></tr></thead><tbody>'+L.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.name)+'</td><td>'+esc(fmtD(num(x.qty)))+'</td><td>'+esc(x.unit||'')+'</td><td>'+esc(x.exp||'—')+'</td></tr>').join('')+'</tbody></table>':'<p>المخزون فاضي</p>')+
    '<div class="rfoot">إعداد: م/ عمرو مدحت · '+fmtDate(today())+'</div>';
 }
 function openPlainReport(html){
@@ -1072,11 +1091,19 @@ function treatHTML(){
    '<div class="g2"><label class="f"><span>التاريخ</span><input type="date" id="tDate" value="'+today()+'"></label><label class="f"><span>الوقت</span><input type="time" id="tTime" value="'+nextHour()+'"></label></div>'+
    '<div class="g2"><label class="f"><span>الوحدة</span><select id="tUnit"><option>مل</option><option>لتر</option><option>جم</option><option>كجم</option><option>جرعة</option></select></label>'+
    '<label class="f"><span>نبّهني قبلها بـ</span><select id="tRemind"><option value="0">وقت الموعد فقط</option><option value="15">15 دقيقة</option><option value="30" selected>30 دقيقة</option><option value="60">ساعة</option><option value="120">ساعتين</option></select></label></div>'+
+   '<div class="g2"><label class="f"><span>الصنف من الصيدلية (خصم تلقائي)</span><select id="tPh"><option value="">— بدون خصم —</option>'+S.pharm.slice().sort((a,b)=>a.name.localeCompare(b.name,'ar')).map(x=>'<option value="'+esc(x.id)+'">'+esc(x.name)+' ('+esc(fmtD(num(x.qty)))+' '+esc(x.unit||'')+')</option>').join('')+'</select></label><label class="f"><span>السقوة</span><select id="tRnd"><option value="">عادي</option><option>أولى</option><option>ثانية</option></select></label></div>'+
+   '<label class="f"><span>خصم يدوي بوحدة الصيدلية (اختياري، مثال 0.25)</span><input type="number" inputmode="decimal" step="any" min="0" id="tDed"></label><div class="small" id="tPrev" style="margin-bottom:6px"></div>'+
    '<h3 style="font-size:14px;color:var(--muted)">الكمية لكل عنبر (سيب الخانة فاضية لو العنبر مش داخل)</h3>'+
    '<div class="row"><input type="number" inputmode="decimal" id="tAll" placeholder="كمية موحدة" style="flex:1;min-width:100px"><button class="btn sm" id="tApply">تطبيق على الكل</button></div>'+
    '<div class="g4">'+q+'</div><label class="f"><span>ملاحظات</span><input type="text" id="tNote" placeholder="طريقة الإعطاء، التخفيف، إلخ"></label>'+
    '<div class="row"><button class="btn primary" id="tAdd">حفظ في الجدول</button><span class="small" id="tMsg"></span></div></div></details><div id="tlist"></div></div>';
 }
+function tdnHTML(t){const ph=S.pharm.find(x=>x.id===t.ph);if(!ph)return '';
+  return '<div class="card" style="margin:8px 0" id="tdn"><div class="small"><b>الكميات الفعلية لكل عنبر</b> (عدّل أو سيب الخانة فاضية لو العنبر ما أخدش)</div><div class="g4" style="margin-top:6px">'+S.settings.houses.map(H=>'<label class="f"><span>'+esc(hname(H.id))+'</span><input type="number" inputmode="decimal" step="any" min="0" data-tq="'+H.id+'" value="'+esc(has(t.q[H.id])?t.q[H.id]:'')+'"></label>').join('')+'</div>'+
+   '<label class="f" style="margin-top:6px"><span>خصم يدوي بوحدة الصيدلية ('+esc(ph.unit||'')+') — اختياري</span><input type="number" inputmode="decimal" step="any" min="0" id="tdnDed" value="'+esc(t.ded||'')+'"></label><div class="small" id="tdnPrev" style="margin:6px 0">'+dedTxt(ph,t.unit,t.q,t.ded)+'</div>'+
+   '<div class="row"><button class="btn sm primary" data-tconf="'+t.id+'">تأكيد وخصم</button><button class="btn sm" data-tcancel="1">إلغاء</button></div></div>'}
+function tdnRead(t){const q={};$$('[data-tq]').forEach(i=>{if(i.value!=='')q[i.getAttribute('data-tq')]=i.value});const d=$('#tdnDed');return {q:q,ded:d?d.value:''}}
+function tUndo(t,keep){if(t.dd){const it=S.pharm.find(x=>x.id===t.dd.ph);if(it&&!keep){it.qty=Math.round((num(it.qty)+t.dd.amt)*10000)/10000;phMv(it,{d:today(),at:Date.now(),a:t.dd.amt,w:'إرجاع: '+t.name})}delete t.dd}}
 function renderTList(){
   const box=$('#tlist');if(!box)return;const now=Date.now();
   const list=S.treat.slice().sort((a,b)=>a.done!==b.done?(a.done?1:-1):((a.date+a.time)<(b.date+b.time)?-1:1));
@@ -1085,8 +1112,8 @@ function renderTList(){
     const due=new Date(t.date+'T'+t.time+':00').getTime(),diff=Math.round((due-now)/60000);let st,cls='';
     if(t.done){st='<span class="pill ok">تم</span>';cls='done'}else if(diff<0){st='<span class="pill bad">متأخر '+human(-diff)+'</span>';cls='late'}else st='<span class="pill warn">بعد '+human(diff)+'</span>';
     let qs='';for(const id in t.q)if(has(t.q[id]))qs+='<span>'+esc(hname(+id))+': '+esc(t.q[id])+' '+esc(t.unit)+'</span>';
-    return '<div class="titem '+cls+'"><div class="row spread"><b>'+(t.kind==='vaccine'?'💉 ':'💊 ')+esc(t.name)+'</b>'+st+'</div><div class="small muted">'+t.date+' · '+t.time+(num(t.remind)>0?' · تنبيه قبلها '+human(num(t.remind)):'')+'</div><div class="qty">'+(qs||'<span>بدون كميات</span>')+'</div>'+(t.note?'<div class="small">'+esc(t.note)+'</div>':'')+
-     '<div class="row">'+(t.done?'<button class="btn sm" data-tundo="'+t.id+'">إرجاع</button>':'<button class="btn sm primary" data-tdone="'+t.id+'">تم التنفيذ</button>')+'<button class="btn sm danger" data-confirm="tdel:'+t.id+'">حذف</button><button class="btn sm" data-aisum="'+t.id+'">🤖 خلاصة</button></div><div id="aisum'+t.id+'"></div></div>';
+    return '<div class="titem '+cls+'"><div class="row spread"><b>'+(t.kind==='vaccine'?'💉 ':'💊 ')+esc(t.name)+(t.rnd?' — سقوة '+esc(t.rnd):'')+'</b>'+st+'</div><div class="small muted">'+t.date+' · '+t.time+(num(t.remind)>0?' · تنبيه قبلها '+human(num(t.remind)):'')+'</div><div class="qty">'+(qs||'<span>بدون كميات</span>')+'</div>'+(t.note?'<div class="small">'+esc(t.note)+'</div>':'')+(t.dd?'<div class="small" style="color:var(--ok)">✓ اتخصم '+esc(fmtD(t.dd.amt))+' '+esc(t.dd.u||'')+' من «'+esc(t.dd.n)+'»</div>':t.ph&&!t.done?'<div class="small muted">هيتخصم من الصيدلية عند «تم التنفيذ»</div>':'')+(ui.tdn===t.id?tdnHTML(t):'')+
+     '<div class="row">'+(t.done?'<button class="btn sm" data-tundo="'+t.id+'">إرجاع</button>':'<button class="btn sm primary" data-tdone="'+t.id+'">تم التنفيذ</button>')+'<button class="btn sm danger" data-confirm="tdel:'+t.id+'">حذف</button><button class="btn sm" data-aisum="'+t.id+'">🤖 خلاصة</button></div><div id="aisum'+t.id+'">'+aiOutHTML(aiSum[t.id]||lsg('farm_ai_c:'+normN(t.name)))+'</div></div>';
   }).join('');
 }
 
@@ -1682,7 +1709,7 @@ function renderNav(){
 }
 function render(){
   renderNav();
-  $('#app').innerHTML=ui.tab==='home'?homeHTML():ui.tab==='tasks'?tasksHTML():ui.tab==='treat'?treatHTML():ui.tab==='ai'?aiPageHTML():ui.tab==='log'?logHTML():setHTML();
+  $('#app').innerHTML=ui.tab==='home'?homeHTML():ui.tab==='tasks'?tasksHTML():ui.tab==='treat'?treatHTML():ui.tab==='ai'?aiPageHTML():ui.tab==='stats'?statsHTML():ui.tab==='log'?logHTML():setHTML();
   showSheet();renderBanner();
   if(ui.tab==='treat')renderTList();
   if(ui.tab==='log')drawCharts();
@@ -1699,7 +1726,7 @@ function askConfirm(btn,action){
 }
 function runConfirmed(a){
   const p=a.split(':');
-  if(p[0]==='tdel'){S.treat=S.treat.filter(t=>t.id!==p[1]);persist();renderTList()}
+  if(p[0]==='tdel'){const t0=S.treat.find(t=>t.id===p[1]);if(t0&&t0.dd){let back=false;try{back=confirm('العلاج ده اتخصم من الصيدلية ('+fmtD(t0.dd.amt)+' '+(t0.dd.u||'')+' من '+t0.dd.n+'). موافق = رجّع الكمية للمخزون، إلغاء = سيب المخزون زي ما هو.')}catch(e){}tUndo(t0,!back)}S.treat=S.treat.filter(t=>t.id!==p[1]);persist();renderTList();const ob=$('#pharm');if(ob){const op=ob.open;const tmp=document.createElement('div');tmp.innerHTML=pharmHTML();ob.replaceWith(tmp.firstChild);if(op&&$('#pharm'))$('#pharm').open=true}}
   else if(p[0]==='phdel'){S.pharm=S.pharm.filter(x=>x.id!==p[1]);persist();const op=$('#pharm')&&$('#pharm').open;render();if(op&&$('#pharm'))$('#pharm').open=true}
   else if(p[0]==='snaprest'){snapRestore(p[1])}
   else if(p[0]==='clearalerts'){S.alerts=[];persist();renderBanner()}
@@ -1802,15 +1829,20 @@ document.addEventListener('click',e=>{
 
   if(d.act==='repopen'){openReport();return}
   if(d.act==='repclose'){if(history.state&&history.state.rep)history.back();else closeReport();return}
-  if(d.act==='repprint'){window.print();return}
+  if(d.act==='repprint'){
+    const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins.FarmNative,pg=document.querySelector('#repView .rpage');
+    if(N&&N.printHtml&&pg){let css='';try{Array.from(document.styleSheets).forEach(ss=>{try{Array.from(ss.cssRules).forEach(r=>{css+=r.cssText+'\n'})}catch(e){}})}catch(e){}
+      N.printHtml({title:'تقرير-'+today(),html:'<!doctype html><html dir="rtl" lang="ar"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>'+css+'\nbody{background:#fff!important;color:#000}</style></head><body class="repopen"><div id="repView"><div class="rpage">'+pg.innerHTML+'</div></div></body></html>'}).catch(()=>window.print())}
+    else window.print();return}
   if(d.act==='shiftpdf'){openPlainReport(shiftReportHTML(ui.date));return}
   if(d.act==='phpdf'){openPlainReport(pharmReportHTML());return}
   if(d.act==='phadd'){
     const nm=($('#phName').value||'').trim(),q=num($('#phQty').value),m=$('#phMsg');
     if(!nm||!(q>0)){m.style.color='var(--bad)';m.textContent='اكتب الاسم وكمية أكبر من صفر';return}
     const f=S.pharm.find(x=>normN(x.name)===normN(nm));
-    if(f){const old=num(f.qty);f.qty=old+q;if($('#phExp').value)f.exp=$('#phExp').value;if($('#phMin').value!=='')f.min=$('#phMin').value;m.textContent='اتضاف على الصنف الموجود: '+fmtN(old)+' ← '+fmtN(f.qty)}
-    else{S.pharm.push({id:uid(),name:nm,qty:q,unit:$('#phUnit').value,exp:$('#phExp').value||'',min:$('#phMin').value});m.textContent='اتعمل صنف جديد: '+nm}
+    const pk=num($('#phPack').value),pku=$('#phPackU').value;
+    if(f){const old=num(f.qty);f.qty=old+q;phMv(f,{d:today(),at:Date.now(),a:q,w:'إضافة للمخزون'});if(pk>0&&pku)f.pack={n:pk,u:pku};if($('#phExp').value)f.exp=$('#phExp').value;if($('#phMin').value!=='')f.min=$('#phMin').value;m.textContent='اتضاف على الصنف الموجود: '+fmtN(old)+' ← '+fmtN(f.qty)}
+    else{S.pharm.push({id:uid(),name:nm,qty:q,unit:$('#phUnit').value,exp:$('#phExp').value||'',min:$('#phMin').value,pack:(pk>0&&pku)?{n:pk,u:pku}:null,mv:[{d:today(),at:Date.now(),a:q,w:'رصيد أول'}]});m.textContent='اتعمل صنف جديد: '+nm}
     const msg=m.textContent;persist();const o=$('#pharm');const op=o&&o.open;render();const o2=$('#pharm');if(o2&&op)o2.open=true;const m2=$('#phMsg');if(m2){m2.style.color='var(--ok)';m2.textContent=msg}return}
   if(d.act==='snaplist'){snapList();return}
   if(d.act&&d.act.charAt(0)==='n'&&/^(nkeep|nbatt|novl|nbub)$/.test(d.act)){
@@ -1840,16 +1872,27 @@ document.addEventListener('click',e=>{
   if(d.act==='addeng'){const i=$('#engNew'),v=(i.value||'').trim();if(!v){i.focus();return}S.settings.engineers.push(v);if(!S.settings.rot.date){S.settings.rot={date:today(),idx:0}}persist();render();return}
   if(d.act==='addcur'){S.settings.curtain.push({f:'',cm:''});persist();render();return}
   if(d.kind){$$('#tkind button').forEach(b=>b.setAttribute('aria-pressed',b===t));return}
-  if(d.tdone){S.treat.forEach(x=>{if(x.id===d.tdone)x.done=true});persist();renderTList();return}
-  if(d.tundo){S.treat.forEach(x=>{if(x.id===d.tundo){x.done=false;delete S.fired['tr-due-'+x.id]}});persist();renderTList();return}
-  if(t.id==='tApply'){const v=$('#tAll').value;$$('[data-q]').forEach(i=>{i.value=v});return}
+  if(d.tdone){const t0=S.treat.find(x=>x.id===d.tdone);if(!t0)return;
+    if(t0.ph&&S.pharm.some(x=>x.id===t0.ph)){ui.tdn=t0.id;ui.tforce=null;renderTList();return}
+    t0.done=true;persist();renderTList();return}
+  if(d.tcancel){ui.tdn=null;ui.tforce=null;renderTList();return}
+  if(d.tconf){const t0=S.treat.find(x=>x.id===d.tconf),ph=t0&&S.pharm.find(x=>x.id===t0.ph);if(!t0||!ph){ui.tdn=null;renderTList();return}
+    const r=tdnRead(t0),c=dedCalc(ph,t0.unit,r.q,r.ded);
+    if(c.amt===null||!(c.amt>0)){const p=$('#tdnPrev');if(p)p.innerHTML=dedTxt(ph,t0.unit,r.q,r.ded);return}
+    if(c.amt>num(ph.qty)+1e-9&&ui.tforce!==t0.id){ui.tforce=t0.id;const p=$('#tdnPrev');if(p)p.innerHTML=dedTxt(ph,t0.unit,r.q,r.ded)+'<br><b>المخزون أقل من المطلوب — اضغط «تأكيد وخصم» تاني لو عايز تكمل (هيتصفّر المخزون).</b>';return}
+    const real=Math.min(c.amt,num(ph.qty));
+    t0.q=r.q;t0.ded=r.ded;tUndo(t0);t0.dd={ph:ph.id,amt:real,u:ph.unit||'',n:ph.name};
+    ph.qty=Math.round((num(ph.qty)-real)*10000)/10000;phMv(ph,{d:today(),at:Date.now(),a:-real,w:'علاج: '+t0.name+(t0.rnd?' سقوة '+t0.rnd:'')});
+    t0.done=true;ui.tdn=null;ui.tforce=null;persist();renderTList();const ob=$('#pharm');if(ob){const op=ob.open;const tmp=document.createElement('div');tmp.innerHTML=pharmHTML();ob.replaceWith(tmp.firstChild);if(op&&$('#pharm'))$('#pharm').open=true}return}
+  if(d.tundo){const t0=S.treat.find(x=>x.id===d.tundo);if(t0){tUndo(t0);t0.done=false;delete S.fired['tr-due-'+t0.id]}persist();renderTList();const ob=$('#pharm');if(ob){const op=ob.open;const tmp=document.createElement('div');tmp.innerHTML=pharmHTML();ob.replaceWith(tmp.firstChild);if(op&&$('#pharm'))$('#pharm').open=true}return}
+  if(t.id==='tApply'){const v=$('#tAll').value;$$('[data-q]').forEach(i=>{i.value=v});tPrev();return}
   if(t.id==='tAdd'){
     const name=$('#tName').value.trim(),msg=$('#tMsg');
     if(!name){msg.textContent='اكتب الاسم الأول';msg.style.color='var(--bad)';return}
     const q={};$$('[data-q]').forEach(i=>{if(i.value!=='')q[i.getAttribute('data-q')]=i.value});
     if(!Object.keys(q).length){msg.textContent='حدد كمية لعنبر واحد على الأقل';msg.style.color='var(--bad)';return}
-    S.treat.push({id:uid(),kind:$('#tkind [aria-pressed="true"]').getAttribute('data-kind'),name:name,date:$('#tDate').value,time:$('#tTime').value||'08:00',unit:$('#tUnit').value,remind:$('#tRemind').value,q:q,note:$('#tNote').value.trim(),done:false});
-    persist();$('#tName').value='';$('#tNote').value='';$$('[data-q]').forEach(i=>{i.value=''});$('#tAll').value='';
+    S.treat.push({id:uid(),kind:$('#tkind [aria-pressed="true"]').getAttribute('data-kind'),name:name,date:$('#tDate').value,time:$('#tTime').value||'08:00',unit:$('#tUnit').value,remind:$('#tRemind').value,q:q,note:$('#tNote').value.trim(),done:false,ph:$('#tPh').value||'',rnd:$('#tRnd').value||'',ded:$('#tDed').value||''});
+    persist();$('#tName').value='';$('#tNote').value='';$$('[data-q]').forEach(i=>{i.value=''});$('#tAll').value='';$('#tPh').value='';$('#tRnd').value='';$('#tDed').value='';tPrev();
     msg.textContent='تمت الإضافة ✓';msg.style.color='var(--ok)';renderTList();tick();return}
   if(d.copy){const m=$('#cpmsg');copyInto(d.copy==='json'?JSON.stringify(S):d.copy==='day'?dailyCSV():eveCSV(),$('#bk'),m);return}
   if(t.id==='wake'){
@@ -1915,13 +1958,16 @@ document.addEventListener('change',e=>{
   if(el.matches('[data-ek="tin"],[data-ek="fans"],[data-ek="heaters"],[data-ek="htr"]')){checkEve(+el.dataset.house,+el.dataset.hour);return}
   if(el.matches('[data-k="tmax"]')&&ui.open)checkDayHeat(ui.open,el.value);
 });
+document.addEventListener('input',e=>{const el=e.target;if(el.matches&&el.matches('[data-q],#tDed,#tAll'))tPrev();if(el.matches&&el.matches('[data-tq],#tdnDed')){const t0=S.treat.find(x=>x.id===ui.tdn),ph=t0&&S.pharm.find(x=>x.id===t0.ph),p=$('#tdnPrev');if(p&&ph){const r=tdnRead(t0);p.innerHTML=dedTxt(ph,t0.unit,r.q,r.ded);ui.tforce=null}}});
+document.addEventListener('change',e=>{if(e.target.id==='tPh'||e.target.id==='tUnit'){tPrev();if(e.target.id==='tPh'&&e.target.value&&!$('#tName').value.trim()){const p=S.pharm.find(x=>x.id===e.target.value);if(p)$('#tName').value=p.name}}});
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){tick();autoSnap()}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)hiddenAt=Date.now();else if(S.settings.pin&&hiddenAt&&Date.now()-hiddenAt>60000)showLock()});
 
 /* ===== المساعد الذكي (Gemini - مفتاحك محلي على جهازك فقط) ===== */
-const AIK='farm_ai_key',AIM='farm_ai_model';let aiLast='';
+const AIK='farm_ai_key',AIM='farm_ai_model';let aiLast='';const aiSum={};
 const lsg=k=>{try{return localStorage.getItem(k)||''}catch(e){return ''}},lss=(k,v)=>{try{v?localStorage.setItem(k,v):localStorage.removeItem(k)}catch(e){}};
-const AISYS='إنت مساعد خبير لمزرعة أمهات دجاج تسمين (Breeder) سلالة Ross 308 في المنيا بمصر. رد بالعامية المصرية المبسطة وبإيجاز (نقاط قصيرة). ممنوع تحديد جرعات أدوية أو تشخيص قاطع؛ للعلاج والجرعات انصح بمراجعة الطبيب البيطري ونشرة المنتج. وضّح أي معلومة مش متأكد منها.';
+const AISYS='إنت مساعد خبير لمزرعة أمهات دجاج تسمين (Breeder) سلالة Ross 308 في المنيا بمصر. ردّ دايماً باللغة العربية بالعامية المصرية المبسطة فقط، حتى لو السؤال أو الصورة بالإنجليزي (المصطلحات العلمية والأدوية ممكن تتكتب بالإنجليزي بين قوسين). ممنوع تستخدم رموز التنسيق مثل النجوم ** أو # أو علامات الاقتباس الخلفية؛ اكتب نص عادي ولو عايز نقاط استخدم شرطة - في أول السطر. ردّ بإيجاز لكن كامل وأنهِ كل جملة. ممنوع تحديد جرعات أدوية أو تشخيص قاطع؛ للعلاج والجرعات انصح بمراجعة الطبيب البيطري ونشرة المنتج. وضّح أي معلومة مش متأكد منها.';
+const AILOG='farm_ai_log';let aiModel='',aiRetry=null;
 async function aiList(k){let L=[];try{L=JSON.parse(lsg('farm_ai_list')||'[]')}catch(e){}
   if(L.length)return L;
   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?key='+encodeURIComponent(k));
@@ -1930,71 +1976,244 @@ async function aiList(k){let L=[];try{L=JSON.parse(lsg('farm_ai_list')||'[]')}ca
   const ver=n=>parseFloat((/gemini-([\d.]+)-/.exec(n)||[0,0])[1]);
   L=(j.models||[]).filter(x=>(x.supportedGenerationMethods||[]).indexOf('generateContent')>=0).map(x=>x.name.replace('models/','')).filter(n=>/^gemini-[\d.]+-flash(-lite)?$/.test(n))
     .sort((a,b)=>(/lite/.test(a)-/lite/.test(b))||ver(b)-ver(a));
+  L.sort((a,b)=>(/^gemini-2\.5-flash$/.test(b)-/^gemini-2\.5-flash$/.test(a)));
   L=L.concat(['gemini-flash-latest','gemini-flash-lite-latest']);
   lss('farm_ai_list',JSON.stringify(L));return L}
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
-async function aiAsk(prompt){const k=lsg(AIK);if(!k)throw new Error('ضيف مفتاح Gemini الأول من الإعدادات');
-  const L=await aiList(k);let last=0;
+function aiLogAdd(e){try{const a=JSON.parse(lsg(AILOG)||'[]');a.push(e);lss(AILOG,JSON.stringify(a.slice(-20)))}catch(x){}}
+function aiClean(t){return String(t||'').replace(/\r/g,'').replace(/^[ \t]*#{1,6}[ \t]*/gm,'').replace(/^[ \t]*[*•][ \t]+/gm,'- ').replace(/[*`]+/g,'').replace(/\s#{1,6}\s/g,' ').replace(/_{2,}/g,'').replace(/\n{3,}/g,'\n\n').trim()}
+async function aiOne(m,k,contents,gc,sys,onTxt,base){
+  const ac=new AbortController();let tm=setTimeout(()=>ac.abort(),25000);const bump=()=>{clearTimeout(tm);tm=setTimeout(()=>ac.abort(),20000)};
+  let txt='',fin='',blk='';
+  const eat=ev=>{String(ev).split(/\r?\n/).forEach(l=>{l=l.trim();if(l.indexOf('data:')!==0)return;let j;try{j=JSON.parse(l.slice(5))}catch(e){return}
+    if(j.promptFeedback&&j.promptFeedback.blockReason)blk=j.promptFeedback.blockReason;
+    const c=j.candidates&&j.candidates[0];if(!c)return;if(c.finishReason)fin=c.finishReason;
+    const p=(c.content&&c.content.parts||[]).map(x=>x.text||'').join('');if(p){txt+=p;if(onTxt)onTxt(base+txt)}})};
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':streamGenerateContent?alt=sse&key='+encodeURIComponent(k),{method:'POST',signal:ac.signal,headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents:contents,generationConfig:gc})});
+    if(!r.ok){let em='';try{const j=await r.json();em=(j.error&&j.error.message)||''}catch(e){}clearTimeout(tm);return {status:r.status,msg:em}}
+    if(r.body&&r.body.getReader){const rd=r.body.getReader(),dc=new TextDecoder();let buf='';
+      for(;;){const x=await rd.read();if(x.done)break;bump();buf+=dc.decode(x.value,{stream:true});let i;while((i=buf.search(/\r?\n\r?\n/))>=0){const ev=buf.slice(0,i);buf=buf.slice(i).replace(/^\r?\n\r?\n/,'');eat(ev)}}
+      if(buf.trim())eat(buf)}
+    else eat((await r.text()).split(/\r?\n\r?\n/).join('\n'));
+    clearTimeout(tm);
+    if(!txt.trim())return {status:-1,msg:blk||fin};
+    return {text:txt,fin:fin}
+  }catch(e){clearTimeout(tm);if(txt.trim())return {text:txt,fin:'MAX_TOKENS'};return {status:0,msg:String(e&&e.message||e)}}}
+async function aiAsk(prompt,img,o){o=o||{};const k=lsg(AIK);if(!k)throw new Error('ضيف مفتاح Gemini الأول من الإعدادات');
+  const L=await aiList(k);let last=0;const t0=Date.now();
+  const parts=[{text:prompt}].concat(img?[{inlineData:{mimeType:img.mime,data:img.data}}]:[]);
   for(let pass=0;pass<2;pass++){
     for(const m of L){
-      let r;try{r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+m+':generateContent?key='+encodeURIComponent(k),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:AISYS}]},contents:[{role:'user',parts:[{text:prompt}]}]})})}catch(e){last=0;continue}
-      if(r.ok){const j=await r.json(),c=j.candidates&&j.candidates[0];
-        const t=(c&&c.content&&c.content.parts||[]).map(p=>p.text||'').join('').trim();if(t)return t;continue}
-      last=r.status;
-      if(r.status===400||r.status===401||r.status===403)throw new Error('المفتاح مش مقبول ('+r.status+'). اعمل مفتاح جديد من AI Studio');
+      const gc={maxOutputTokens:o.max||4096,temperature:o.json?0:0.5};if(/2\.5-flash/.test(m))gc.thinkingConfig={thinkingBudget:0};if(o.json)gc.responseMimeType='application/json';
+      let contents=[{role:'user',parts:parts}],acc='',res,rounds=0;
+      for(;;){
+        res=await aiOne(m,k,contents,gc,o.sys||AISYS,o.onText?(t=>o.onText(o.json?t:aiClean(t))):null,acc);
+        if(res.status!==undefined)break;
+        acc+=res.text;
+        if(res.fin==='MAX_TOKENS'&&rounds<3&&!o.json){rounds++;contents=[{role:'user',parts:parts},{role:'model',parts:[{text:acc}]},{role:'user',parts:[{text:'كمّل من نفس النقطة اللي وقفت عندها بالعربية بدون تكرار.'}]}];continue}
+        aiModel=m;aiLogAdd({t:Date.now(),m:m,ms:Date.now()-t0,ok:1,cont:rounds,trunc:res.fin==='MAX_TOKENS'?1:0});
+        return o.json?acc.trim():aiClean(acc)}
+      if(acc.trim()){aiModel=m;aiLogAdd({t:Date.now(),m:m,ms:Date.now()-t0,ok:1,cont:rounds,trunc:1});return o.json?acc.trim():aiClean(acc)}
+      last=res.status>0?res.status:0;aiLogAdd({t:Date.now(),m:m,ms:Date.now()-t0,ok:0,st:res.status});
+      if(res.status===401||res.status===403||(res.status===400&&/API key/i.test(res.msg||'')))throw new Error('المفتاح مش مقبول ('+res.status+'). اعمل مفتاح جديد من AI Studio');
     }
     if(pass===0)await sleep(1500)}
   lss('farm_ai_list','');
-  throw new Error(last===429?'وصلت للحد المجاني، جرّب بعد شوية':'خدمة Gemini مشغولة دلوقتي ('+(last||'اتصال')+')، جرّب تاني بعد دقيقة')}
+  throw new Error(last===429?'وصلت للحد المجاني، جرّب بعد شوية':'خدمة Gemini مشغولة دلوقتي ('+(last||'اتصال')+')، اضغط إعادة المحاولة')}
 async function weatherTxt(){try{
   const r=await fetch('https://api.open-meteo.com/v1/forecast?latitude=28.11&longitude=30.75&current=temperature_2m,relative_humidity_2m,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=Africa%2FCairo&forecast_days=2');
   const j=await r.json(),c=j.current,d=j.daily;
   return 'طقس المنيا الآن: '+c.temperature_2m+'° رطوبة '+c.relative_humidity_2m+'% رياح '+c.wind_speed_10m+' كم/س. النهارده '+d.temperature_2m_min[0]+'–'+d.temperature_2m_max[0]+'°، بكره '+d.temperature_2m_min[1]+'–'+d.temperature_2m_max[1]+'°.'}catch(e){return 'الطقس غير متاح'}}
-function aiPageHTML(){return head('المساعد الذكي',false)+'<div class="wrap">'+aiCardHTML()+'</div>'}
-function aiOutHTML(t){return t?'<div class="aiout"><div style="white-space:pre-wrap;line-height:1.8">'+esc(t)+'</div><div class="small muted" style="margin-top:8px">⚠️ إرشادات عامة وليست بديل للطبيب البيطري · م/ عمرو مدحت</div></div>':''}
+function homeHTML(){return homeHTML0()+statsLinkCard()}
+function aiPageHTML(){return head('المساعد الذكي',false)+'<div class="wrap">'+aiCardHTML()+impBoxHTML()+'</div>'}
+function aiImgData(f,mx){return new Promise((ok,no)=>{const fr=new FileReader();fr.onerror=()=>no(new Error('تعذر قراءة الصورة'));fr.onload=()=>{const im=new Image();im.onerror=()=>no(new Error('الصورة غير مدعومة'));im.onload=()=>{const m=mx||1400,k=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);c.getContext('2d').drawImage(im,0,0,c.width,c.height);ok({mime:'image/jpeg',data:c.toDataURL('image/jpeg',.85).split(',')[1]})};im.src=fr.result};fr.readAsDataURL(f)})}
+function aiOutHTML(t,m){return t?'<div class="aiout"><div style="white-space:pre-wrap;line-height:1.8">'+esc(t)+'</div>'+(m?'<div class="small muted" style="margin-top:6px">النموذج: '+esc(m)+'</div>':'')+(/^⚠️/.test(t)&&aiRetry?'<button class="btn sm" data-ai="retry" style="margin-top:8px">🔄 إعادة المحاولة</button>':'')+'<div class="small muted" style="margin-top:8px">⚠️ إرشادات عامة وليست بديل للطبيب البيطري · م/ عمرو مدحت</div></div>':''}
 function aiCardHTML(){const k=lsg(AIK);
   return '<div class="card"><h3 style="font-size:17px;color:var(--fg)">🤖 المساعد الذكي (مجاني)</h3>'+
    '<div class="small muted" style="margin:6px 0">اعمل مفتاح مجاني من aistudio.google.com ← Get API key، وحطه هنا. بيتخزن على جهازك بس.</div>'+
    '<div class="row"><input type="password" id="aiKey" placeholder="'+(k?'المفتاح محفوظ ✓ (اكتب جديد للتغيير)':'مفتاح Gemini')+'" style="flex:1" autocomplete="off"><button class="btn sm primary" data-ai="key">حفظ</button></div>'+
    '<textarea id="aiQ" rows="3" placeholder="اسأل عن الحرارة، التهوية، العلف، الهياتر، الطقس…" style="width:100%;margin-top:10px"></textarea>'+
+   '<div style="margin-top:8px"><label class="small muted">📷 صورة (نشرة دواء، علبة، جدول…)</label><input type="file" accept="image/*" id="aiImg" style="width:100%"></div>'+
    '<div class="row" style="margin-top:8px"><button class="btn primary" data-ai="ask" style="flex:1">اسأل</button><button class="btn" data-ai="adv" style="flex:1">🌦️ نصيحة الوردية والطقس</button></div>'+
    '<div id="aiOut">'+aiOutHTML(aiLast)+'</div></div>';}
-async function aiRun(btn,fn){const o=$('#aiOut');if(o)o.innerHTML='<div class="small muted">⏳ بفكر…</div>';
+async function aiRun(btn,fn){aiRetry=fn;aiModel='';const o=$('#aiOut');if(o)o.innerHTML='<div class="small muted">⏳ بفكر…</div>';
+  window.__aiPart=t=>{const x=$('#aiOut');if(x)x.innerHTML='<div class="aiout"><div style="white-space:pre-wrap;line-height:1.8">'+esc(t)+'</div></div>'};
   try{aiLast=await fn()}catch(e){aiLast='⚠️ '+e.message}
-  const o2=$('#aiOut');if(o2)o2.innerHTML=aiOutHTML(aiLast)}
+  const o2=$('#aiOut');if(o2)o2.innerHTML=aiOutHTML(aiLast,/^⚠️/.test(aiLast)?'':aiModel)}
 function aiContext(){const dt=ui.date||today(),d=eveDay(dt),a=flockAge(addDays(dt,1));
   return 'تاريخ الوردية '+dt+(a?'، عمر القطيع '+ageTxt(a.w,a.d):'')+'. متوسط حرارة داخل '+(d.avgT==null?'—':d.avgT)+'° وخارج '+(d.outT==null?'—':d.outT)+'° ورطوبة '+(d.hum==null?'—':Math.round(d.hum))+'%.'}
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-ai],[data-aisum]');if(!b)return;
-  if(b.dataset.aisum){const t=S.treat.find(x=>x.id===b.dataset.aisum);if(!t)return;
-    const box=document.getElementById('aisum'+t.id),ck='farm_ai_c:'+normN(t.name);
-    box.innerHTML='<div class="small muted">⏳ بفكر…</div>';
-    let txt=lsg(ck);
-    if(!txt){try{txt=await aiAsk('لخّص باختصار عن '+(t.kind==='vaccine'?'تحصين':'دواء')+' "'+t.name+'" في أمهات التسمين: الغرض، طريقة الإعطاء المعتادة، احتياطات، أعراض جانبية محتملة. بدون ذكر جرعات.');lss(ck,txt)}catch(er){txt='⚠️ '+er.message}}
-    box.innerHTML=aiOutHTML(txt);return}
+  if(b.dataset.aisum){const id=b.dataset.aisum,t=S.treat.find(x=>x.id===id);if(!t)return;
+    const ck='farm_ai_c:'+normN(t.name);let txt=lsg(ck);
+    const put=v=>{aiSum[id]=v;const bx=document.getElementById('aisum'+id);if(bx)bx.innerHTML=aiOutHTML(v)};
+    if(txt){put(txt);return}
+    put('⏳ بفكر… (لحد 30 ثانية)');
+    try{txt=await aiAsk('لخّص باختصار عن '+(t.kind==='vaccine'?'تحصين':'دواء')+' "'+t.name+'" في أمهات التسمين: الغرض، طريقة الإعطاء المعتادة، احتياطات، أعراض جانبية محتملة. بدون ذكر جرعات.');lss(ck,txt)}catch(er){txt='⚠️ '+er.message}
+    put(txt);return}
   const k=b.dataset.ai;
   if(k==='key'){const v=($('#aiKey').value||'').trim();if(!v)return;lss(AIK,v);lss('farm_ai_list','');aiLast='✓ اتحفظ المفتاح';render();return}
-  if(k==='ask'){const q=($('#aiQ').value||'').trim();if(!q)return;aiRun(b,()=>aiAsk(aiContext()+'\n'+q));return}
-  if(k==='adv'){aiRun(b,async()=>aiAsk(aiContext()+'\n'+await weatherTxt()+'\nإدّيني نصايح قصيرة لضبط التهوية والمراوح والهياتر والتبريد والعلف والمياه للوردية الجاية.'))}
+  if(k==='ask'){const q=($('#aiQ').value||'').trim(),fi=$('#aiImg')&&$('#aiImg').files[0];if(!q&&!fi)return;
+    aiRun(b,async()=>{const img=fi?await aiImgData(fi):null;return aiAsk(img?(q||'اقرأ الصورة واشرح المكتوب فيها باختصار. لو نشرة دواء أو تحصين: الاستخدام والاحتياطات وفترة السحب لو مذكورة، وانقل أي جرعة مكتوبة فيها كما هي وانبّه إنها من النشرة ومحتاجة مراجعة الطبيب البيطري.'):aiContext()+'\n'+q,img,{onText:window.__aiPart})});return}
+  if(k==='adv'){aiRun(b,async()=>aiAsk(aiContext()+'\n'+await weatherTxt()+'\nإدّيني نصايح قصيرة لضبط التهوية والمراوح والهياتر والتبريد والعلف والمياه للوردية الجاية.',null,{onText:window.__aiPart}))}
+  if(k==='retry'&&aiRetry){aiRun(b,aiRetry)}
+});
+
+(function(){let tm=0;const sh=()=>{let a=[];try{a=JSON.parse(lsg(AILOG)||'[]')}catch(e){}
+  const rows=a.slice().reverse().map(x=>{const d=new Date(x.t);return '<div style="padding:4px 0;border-bottom:1px solid var(--line)">'+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds())+' · '+esc(x.m)+' · '+(x.ms/1000).toFixed(1)+' ث · '+(x.ok?'✓':'✗ '+(x.st||''))+(x.cont?' · تكملة '+x.cont:'')+(x.trunc?' · مقطوع':'')+'</div>'}).join('')||'لا يوجد سجل';
+  let v=document.getElementById('aiLogV');if(v)v.remove();v=document.createElement('div');v.id='aiLogV';v.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;padding:16px';
+  v.innerHTML='<div style="background:var(--card,#fff);color:var(--fg,#000);border-radius:14px;padding:14px;max-width:420px;width:100%;max-height:80vh;overflow:auto;direction:rtl;font-size:13px"><b>سجل آخر طلبات المساعد</b><div style="margin:8px 0">'+rows+'</div><button class="btn" id="aiLogX" style="width:100%">إغلاق</button></div>';
+  document.body.appendChild(v);document.getElementById('aiLogX').onclick=()=>v.remove()};
+  const st=e=>{if(e.target.closest&&e.target.closest('#ver')){clearTimeout(tm);tm=setTimeout(sh,1500)}},en=()=>clearTimeout(tm);
+  document.addEventListener('pointerdown',st);document.addEventListener('pointerup',en);document.addEventListener('pointercancel',en);document.addEventListener('contextmenu',e=>{if(e.target.closest&&e.target.closest('#ver'))e.preventDefault()})})();
+
+/* ===== استيراد الجداول من الصور (مراجعة قبل الإدخال) ===== */
+const IMPK={eggs:{t:'بيض يومي لكل عنبر/جانب',f:['clean','washed','dirty','dbl','defect','broken','dead'],L:{clean:'صالح',washed:'مغسول',dirty:'متسخ',dbl:'دوبل',defect:'مشوه',broken:'كسر',dead:'هالك'}},
+ bw:{t:'أوزان الجسم الأسبوعية',f:['male','female'],L:{male:'ذكور جم',female:'إناث جم'}},
+ prod:{t:'نسبة الإنتاج % يومياً',m:'prod'},egg:{t:'وزن البيضة يومياً (جم)',m:'egg'}};
+const IMPP={eggs:'الصورة جدول بيض يومي لعنابر مزرعة دجاج أمهات. لكل عنبر وجانب (تبريد=c ، مراوح=f) استخرج الأعداد بالبيضة كما هي مكتوبة. أرجع JSON فقط بالشكل: {"date":"YYYY-MM-DD أو null","rows":[{"house":رقم,"side":"c أو f","clean":رقم,"washed":رقم,"dirty":رقم,"dbl":رقم,"defect":رقم,"broken":رقم,"dead":رقم,"unsure":["أسماء الحقول المشكوك في قراءتها"]}]}. clean=صالح، washed=مغسول، dirty=متسخ، dbl=دوبل، defect=مشوه، broken=كسر، dead=هالك. اللي مش واضح أو مش موجود اكتبه null وضعه في unsure. ممنوع التخمين.',
+ bw:'الصورة جدول أوزان أسبوعية (بالجرام) لأمهات دجاج. أرجع JSON فقط: {"week":رقم الأسبوع أو null,"rows":[{"house":رقم,"side":"c أو f أو null","male":وزن الذكور,"female":وزن الإناث,"unsure":[]}]}. استخرج متوسط الوزن لكل عنبر/جانب للذكور والإناث كما هو مكتوب. اللي مش واضح اكتبه null وضعه في unsure. ممنوع التخمين.',
+ prod:'الصورة جدول يومي لنسبة الإنتاج % لكل عنبر/جانب. السنة الحالية 2026. أرجع JSON فقط: {"rows":[{"date":"YYYY-MM-DD","week":رقم الأسبوع لو ظاهر أو null,"vals":[كل نسب الإنتاج المقروءة في هذا اليوم],"unsure":[]}]}. اللي مش واضح اكتبه null. ممنوع التخمين.',
+ egg:'الصورة جدول يومي لمتوسط وزن البيضة (جرام) لكل عنبر/جانب. السنة الحالية 2026. أرجع JSON فقط: {"rows":[{"date":"YYYY-MM-DD","week":رقم الأسبوع لو ظاهر أو null,"vals":[كل الأوزان المقروءة في هذا اليوم],"unsure":[]}]}. اللي مش واضح اكتبه null. ممنوع التخمين.'};
+const impN=v=>{if(v===null||v===undefined||v==='')return null;const n=parseFloat(toEn(String(v)).replace(/[,٫]/g,'.'));return isFinite(n)?n:null};
+function impBad(kind,r,fld){const v=r[fld];if((r.unsure||[]).indexOf(fld)>=0)return true;if(v===null||v===undefined||v==='')return kind==='eggs'?(fld==='clean'):true;const n=impN(v);if(n===null||n<0)return true;
+  if(kind==='bw')return n<1500||n>7000;if(kind==='eggs')return n>20000;return false}
+function impAvg(kind,r){const a=(r.vals||[]).map(impN).filter(x=>x!==null);const M=IMPK[kind].m;const ok=a.filter(x=>M==='prod'?x>=0&&x<=100:x>=35&&x<=90);return ok.length?Math.round(ok.reduce((p,c)=>p+c,0)/ok.length*10)/10:null}
+function impBoxHTML(){const I=ui.imp;
+  const sel='<select id="impKind">'+Object.keys(IMPK).map(k=>'<option value="'+k+'"'+(I&&I.kind===k?' selected':'')+'>'+IMPK[k].t+'</option>').join('')+'</select>';
+  let h='<div class="card" id="impCard"><h3 style="font-size:17px;color:var(--fg)">📷 استيراد جدول من صورة</h3><div class="small muted" style="margin:6px 0">صوّر الجدول، والمساعد بيقرأه وبتراجعه بنفسك قبل أي إدخال. مفيش حاجة بتتسجل غير لما تأكد.</div>'+
+   '<div class="row" style="gap:6px"><label class="f" style="flex:1"><span>نوع الجدول</span>'+sel+'</label></div><input type="file" accept="image/*" id="impImg" style="width:100%;margin-top:6px"><button class="btn primary" data-imp="read" style="width:100%;margin-top:8px">قراءة الجدول</button>';
+  if(I&&I.busy)h+='<div class="small muted" style="margin-top:8px">⏳ بقرأ الجدول… (ممكن ياخد لحد دقيقة)</div>';
+  if(I&&I.err)h+='<div class="alert" style="margin-top:8px"><p>⚠️ '+esc(I.err)+'</p></div>';
+  if(I&&I.rows&&!I.busy){const K=IMPK[I.kind];
+    h+='<div style="margin-top:10px"><b>مراجعة القراءة</b> <span class="small muted">— الخانات الصفراء مشكوك فيها، صحّحها قبل التأكيد</span></div>';
+    if(I.kind==='eggs'){h+='<div class="g2" style="margin-top:6px"><label class="f"><span>تاريخ اليوم</span><input type="date" id="impDate" value="'+esc(I.date||ui.date)+'"></label><label class="f" style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="impWash"'+(I.wash===false?'':' checked')+'><span>المغسول يُحسب نظيف</span></label></div>'}
+    if(I.kind==='bw')h+='<label class="f" style="margin-top:6px"><span>رقم الأسبوع</span><input type="number" id="impWeek" value="'+esc(I.week==null?'':I.week)+'"></label>';
+    h+='<div style="overflow-x:auto;margin-top:6px"><table class="imptb" style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr>';
+    if(K.f){h+='<th>عنبر</th><th>جانب</th>'+K.f.map(x=>'<th>'+K.L[x]+'</th>').join('')}else h+='<th>التاريخ</th><th>أسبوع</th><th>القيم</th><th>المتوسط</th>';
+    h+='<th></th></tr></thead><tbody>';
+    I.rows.forEach((r,i)=>{h+='<tr>';
+      if(K.f){h+='<td><input type="number" data-impc="'+i+':house" value="'+esc(r.house==null?'':r.house)+'" style="width:44px"></td><td><select data-impc="'+i+':side"><option value="c"'+(r.side==='c'?' selected':'')+'>تبريد</option><option value="f"'+(r.side==='f'?' selected':'')+'>مراوح</option></select></td>'+
+        K.f.map(x=>'<td><input type="text" inputmode="decimal" data-impc="'+i+':'+x+'" value="'+esc(r[x]==null?'':r[x])+'" style="width:62px;'+(impBad(I.kind,r,x)?'background:#fff3b0;color:#000;':'')+'"></td>').join('')}
+      else{const av=impAvg(I.kind,r);h+='<td><input type="date" data-impc="'+i+':date" value="'+esc(r.date||'')+'" style="width:130px"></td><td><input type="number" data-impc="'+i+':week" value="'+esc(r.week==null?'':r.week)+'" style="width:48px"></td><td><input type="text" data-impc="'+i+':vals" value="'+esc((r.vals||[]).join(' '))+'" style="width:150px;'+((r.unsure&&r.unsure.length)||av===null?'background:#fff3b0;color:#000;':'')+'"></td><td>'+(av===null?'—':av)+'</td>'}
+      h+='<td><button class="btn sm danger" data-imp="del:'+i+'">✕</button></td></tr>'});
+    h+='</tbody></table></div><div class="row" style="margin-top:10px;gap:6px"><button class="btn primary" data-imp="ok" style="flex:1">✓ تأكيد وإدخال</button><button class="btn" data-imp="cancel">إلغاء</button></div>'}
+  if(I&&I.msg)h+='<div class="alert info" style="margin-top:8px"><p>'+I.msg+'</p></div>';
+  return h+'</div>'}
+function impSync(){const I=ui.imp;if(!I||!I.rows)return;
+  $$('[data-impc]').forEach(el=>{const p=el.getAttribute('data-impc').split(':'),r=I.rows[+p[0]];if(!r)return;let v=el.value;
+    if(p[1]==='vals')r.vals=v.split(/[\s,،]+/).filter(Boolean);else if(p[1]==='side'||p[1]==='date')r[p[1]]=v;else r[p[1]]=v===''?null:v;
+    if(r.unsure&&p[1]!=='side'&&p[1]!=='date'){const i=r.unsure.indexOf(p[1]);if(i>=0&&el.dataset.touched)r.unsure.splice(i,1)}});
+  const d=$('#impDate');if(d)I.date=d.value;const w=$('#impWeek');if(w)I.week=impN(w.value);const ws=$('#impWash');if(ws)I.wash=ws.checked}
+function impRender(){const c=$('#impCard');if(c){const t=document.createElement('div');t.innerHTML=impBoxHTML();c.replaceWith(t.firstChild)}}
+function impCommit(){const I=ui.imp,K=IMPK[I.kind];let n=0,skip=0,bad=0,msg='';
+  if(I.kind==='eggs'){const dt=I.date;if(!/^\d{4}-\d{2}-\d{2}$/.test(dt||'')){I.msg='اختار تاريخ اليوم الأول';return false}
+    const T=trayN(),R=x=>Math.round(x*100)/100;
+    I.rows.forEach(r=>{const h=Math.round(impN(r.house)||0);if(h<1||h>7||(r.side!=='c'&&r.side!=='f')){bad++;return}
+      const key=h+r.side,old=(S.days[dt]||{})[key]||{};
+      if(['c1','d1','c2','d2','c3','d3'].some(k=>has(old[k]))){skip++;return}
+      const cl=(impN(r.clean)||0)+(I.wash===false?0:(impN(r.washed)||0)),di=impN(r.dirty)||0;
+      const o=rec(dt,key,true);o.c1=String(R(cl/T));o.d1=String(R(di/T));
+      ['dbl','defect','broken','dead'].forEach(k=>{const v=impN(r[k]);if(v!==null)o[k]=String(v)});
+      o.imp='1';n++});
+    msg='اتدخل '+n+' جانب'+(skip?' · اتخطّيت '+skip+' لأن فيهم تسجيل ميداني موجود':'')+(bad?' · '+bad+' صف غير صالح (عنبر/جانب)':'')}
+  else if(I.kind==='bw'){const wk=Math.round(I.week||0);if(!(wk>=1&&wk<=100)){I.msg='اكتب رقم الأسبوع';return false}
+    const avg=k=>{const a=I.rows.map(r=>impN(r[k])).filter(x=>x!==null&&x>=1500&&x<=7000);return a.length?Math.round(a.reduce((p,c)=>p+c,0)/a.length):null};
+    const m=avg('male'),fm=avg('female');if(m!==null){stSet().bwM[String(wk)]=m;n++}if(fm!==null){stSet().bwF[String(wk)]=fm;n++}
+    msg='اتسجل في الإحصائيات أسبوع '+wk+(fm!==null?' · إناث '+fm+' جم':'')+(m!==null?' · ذكور '+m+' جم':'')}
+  else{const M=K.m,by={};
+    I.rows.forEach(r=>{const a=impAvg(I.kind,r);if(a===null){bad++;return}let w=Math.round(impN(r.week)||0);if(!(w>=1)){const fa=flockAge(r.date||'');w=fa?fa.w:0}if(!(w>=1)){bad++;return}(by[w]=by[w]||[]).push(a)});
+    Object.keys(by).forEach(w=>{const a=by[w];stSet()[M][w]=Math.round(a.reduce((p,c)=>p+c,0)/a.length*10)/10;n++});
+    msg='اتسجل '+n+' أسبوع في منحنى '+STM[M].t+(bad?' · '+bad+' يوم متخطى (قيم ناقصة أو أسبوع غير معروف)':'')}
+  persist();I.rows=null;I.msg=msg;return true}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-imp]');if(!b)return;const a=b.dataset.imp,I=ui.imp||(ui.imp={});
+  if(a==='read'){const fi=$('#impImg')&&$('#impImg').files[0],kind=$('#impKind').value;if(!fi){ui.imp={kind:kind,err:'اختار صورة الجدول الأول'};impRender();return}
+    ui.imp={kind:kind,busy:true};impRender();
+    try{const img=await aiImgData(fi,2000);const txt=await aiAsk(IMPP[kind],img,{json:true,max:8192,sys:'إنت أداة استخراج بيانات من صور جداول. ردّك JSON صالح فقط بدون أي نص آخر.'});
+      let j;try{j=JSON.parse(txt.replace(/^```(?:json)?/i,'').replace(/```$/,'').trim())}catch(x){throw new Error('مقدرتش أقرأ الجدول بشكل صحيح، جرّب صورة أوضح أو أقرب')}
+      const rows=Array.isArray(j.rows)?j.rows:[];if(!rows.length)throw new Error('ملقتش صفوف في الصورة');
+      ui.imp={kind:kind,rows:rows.slice(0,200),date:/^\d{4}-\d{2}-\d{2}$/.test(j.date||'')?j.date:'',week:j.week==null?null:impN(j.week),wash:true}}
+    catch(er){ui.imp={kind:kind,err:er.message}}
+    impRender();return}
+  if(a==='cancel'){ui.imp=null;impRender();return}
+  if(a.indexOf('del:')===0){impSync();I.rows.splice(+a.slice(4),1);impRender();return}
+  if(a==='ok'){impSync();if(impCommit()){}impRender();if(ui.tab==='stats')render();return}
+});
+document.addEventListener('input',e=>{const el=e.target;if(el.matches&&el.matches('[data-impc]')){el.dataset.touched='1';el.style.background=''}});
+document.addEventListener('change',e=>{if(e.target.matches&&e.target.matches('[data-impc],#impWash,#impDate')){impSync();const I=ui.imp;}});
+
+/* ===== إحصائيات القطيع والمنحنيات ===== */
+const STD0={prod:[[26,5],[28,62],[28.6,76],[29.7,85],[30.7,88],[31.8,89],[34.9,86.5],[40.2,82.5],[54.5,69],[65,57.5]],
+ egg:[[25,50.5],[27,55.5],[29,57.8],[31,60],[33,61.5],[35,62.6],[37,63.6],[39,64.4],[41,65],[45,66.5],[51,69],[59,72.2],[63,72.7]],
+ bwF:[[22,2600],[26,3120],[29,3430],[40,3740],[54,3950],[63,4160]],
+ bwM:[[22,3400],[26.5,4060],[29,4140],[49,4820],[62,5170]]};
+const STM={prod:{t:'الإنتاج %',x0:25,x1:65,y0:0,y1:100,u:'%',d:1,mx:100},egg:{t:'وزن البيضة (جم)',x0:25,x1:65,y0:45,y1:75,u:'جم',d:1},
+ bwF:{t:'وزن الإناث (جم)',x0:22,x1:64,y0:2400,y1:4400,u:'جم',d:0},bwM:{t:'وزن الذكور (جم)',x0:22,x1:64,y0:3200,y1:5400,u:'جم',d:0}};
+function stSet(){if(!S.settings.stats||typeof S.settings.stats!=='object')S.settings.stats={};
+  ['prod','egg','bwF','bwM'].forEach(m=>{if(!S.settings.stats[m]||typeof S.settings.stats[m]!=='object')S.settings.stats[m]={}});return S.settings.stats}
+function stPts(m){const c=S.settings.std&&S.settings.std[m];
+  if(typeof c==='string'&&c.trim()){const a=c.split(/\n/).map(l=>l.replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).split(/[=:,\s]+/).map(Number)).filter(p=>p.length>=2&&isFinite(p[0])&&isFinite(p[1])).sort((a,b)=>a[0]-b[0]);if(a.length>=2)return a}
+  return STD0[m]}
+function stdAt(m,w){const p=stPts(m);if(w<p[0][0]||w>p[p.length-1][0])return null;
+  for(let i=1;i<p.length;i++)if(w<=p[i][0]){const a=p[i-1],b=p[i];return a[1]+(b[1]-a[1])*(w-a[0])/(b[0]-a[0])}return p[p.length-1][1]}
+function stChart(m){const M=STM[m],W=340,H=190,L=40,R=8,T=8,B=22,pw=W-L-R,ph=H-T-B;
+  const X=w=>L+(w-M.x0)/(M.x1-M.x0)*pw,Y=v=>T+(1-(v-M.y0)/(M.y1-M.y0))*ph;
+  let g='';for(let i=0;i<=4;i++){const v=M.y0+(M.y1-M.y0)*i/4,y=Y(v);g+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)" stroke-width="1"/><text x="'+(L-4)+'" y="'+(y+3)+'" text-anchor="end" font-size="9" fill="var(--muted)">'+Math.round(v)+'</text>'}
+  for(let w=Math.ceil(M.x0/4)*4;w<=M.x1;w+=4)g+='<text x="'+X(w)+'" y="'+(H-6)+'" text-anchor="middle" font-size="9" fill="var(--muted)">'+w+'</text>';
+  let sp='';for(let w=M.x0;w<=M.x1;w+=.5){const v=stdAt(m,w);if(v!==null)sp+=(sp?'L':'M')+X(w).toFixed(1)+' '+Y(Math.max(M.y0,Math.min(M.y1,v))).toFixed(1)}
+  const st=stSet()[m],ws=Object.keys(st).map(Number).filter(w=>isFinite(w)).sort((a,b)=>a-b);
+  let ap='',dots='';ws.forEach(w=>{const v=+st[w];if(!isFinite(v))return;const x=X(Math.max(M.x0,Math.min(M.x1,w))),y=Y(Math.max(M.y0,Math.min(M.y1,v)));ap+=(ap?'L':'M')+x.toFixed(1)+' '+y.toFixed(1);dots+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="2.6" fill="var(--brand)"/>'});
+  return '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;direction:ltr">'+g+'<path d="'+sp+'" fill="none" stroke="var(--muted)" stroke-width="1.6" stroke-dasharray="5 3"/>'+(ap?'<path d="'+ap+'" fill="none" stroke="var(--brand)" stroke-width="2"/>':'')+dots+'</svg>'}
+function stCard(m){const M=STM[m],st=stSet()[m],ws=Object.keys(st).map(Number).filter(w=>isFinite(w)&&isFinite(+st[w])).sort((a,b)=>a-b);
+  const a=flockAge(today()),cw=a?a.w:'';let line='<span class="muted">لا توجد قراءات بعد</span>';
+  if(ws.length){const w=ws[ws.length-1],v=+st[w],s=stdAt(m,w);line='آخر قراءة (أسبوع '+w+'): <b>'+v+' '+M.u+'</b>'+(s===null?'':' · المعيار ≈ '+s.toFixed(M.d)+' · الفرق <b style="color:var(--'+(v>=s?'ok':'warn')+')">'+(v>=s?'+':'')+(v-s).toFixed(M.d)+'</b>')}
+  const chips=ws.slice(-8).map(w=>'<span class="pill">'+w+': '+st[w]+' <a href="#" data-stdel="'+m+':'+w+'" style="color:var(--bad);text-decoration:none">✕</a></span>').join(' ');
+  return '<div class="card"><h3 style="font-size:16px;color:var(--fg)">'+M.t+'</h3>'+stChart(m)+
+   '<div class="small" style="margin:6px 0">'+line+'</div><div class="small muted">— — المعيار (تقريبي من منحنياتك) · ── قراءاتك</div>'+
+   '<div class="row" style="margin-top:8px;gap:6px"><input type="number" inputmode="numeric" id="stw_'+m+'" placeholder="الأسبوع" value="'+cw+'" style="width:30%"><input type="number" inputmode="decimal" step="any" id="stv_'+m+'" placeholder="'+M.u+'" style="flex:1"><button class="btn sm primary" data-st="'+m+'">حفظ</button></div>'+
+   (chips?'<div style="margin-top:8px;line-height:2">'+chips+'</div>':'')+
+   '<details style="margin-top:8px"><summary class="small">تعديل أرقام المعيار</summary><div class="small muted" style="margin:6px 0">سطر لكل نقطة: أسبوع=قيمة. الأرقام الحالية تقريبية قريتها من منحنياتك، راجعها أو ضع الأرقام الرسمية.</div><textarea id="stp_'+m+'" rows="6" style="width:100%">'+stPts(m).map(p=>p[0]+'='+p[1]).join('\n')+'</textarea><div class="row" style="gap:6px;margin-top:6px"><button class="btn sm" data-stsave="'+m+'">حفظ المعيار</button><button class="btn sm" data-streset="'+m+'">رجوع للأصلي</button></div></details></div>'}
+function statsHTML(){const a=flockAge(today());
+  return head('إحصائيات القطيع',false)+'<div class="wrap"><div class="card"><div class="small">'+(a?'إجمالي عمر القطيع: <b>'+ageTxt(a.w,a.d)+'</b> · السلالة: '+esc(a.breed||'—'):'ضبط بيانات القطيع من الإعدادات')+'</div></div>'+'<div class="card"><button class="btn" data-stpull="1" style="width:100%">⬇️ سحب الإنتاج % من تسجيلات الأيام</button><div class="small muted" id="stpm" style="margin-top:6px">بيحسب متوسط كل أسبوع من الأيام المسجلة في التطبيق. للجداول: من تبويب المساعد ← استيراد جدول من صورة.</div></div>'+['prod','egg','bwF','bwM'].map(stCard).join('')+'<div class="small muted" style="text-align:center;margin:12px 0">م/ عمرو مدحت</div></div>'}
+function statsLinkCard(){return '<div class="wrap"><button class="btn" data-go="stats" style="width:100%;margin:10px 0">📈 إحصائيات القطيع والمنحنيات</button></div>'}
+document.addEventListener('click',e=>{
+  if(e.target.closest('[data-stpull]')){const by={};Object.keys(S.days).forEach(d=>{const v=metricDay(d,0,'prod'),a=flockAge(d);if(v!==null&&a)(by[a.w]=by[a.w]||[]).push(v)});let n=0;Object.keys(by).forEach(w=>{const a=by[w];stSet().prod[w]=Math.round(a.reduce((p,c)=>p+c,0)/a.length*10)/10;n++});persist();render();const m=$('#stpm');if(m)m.textContent=n?'اتسحب '+n+' أسبوع ✓':'مفيش أيام مسجلة فيها إنتاج';return}
+  const g=e.target.closest('[data-go="stats"]');if(g){ui.tab='stats';render();window.scrollTo(0,0);return}
+  const d=e.target.closest('[data-stdel]');if(d){e.preventDefault();const p=d.dataset.stdel.split(':');delete stSet()[p[0]][p[1]];persist();render();return}
+  const b=e.target.closest('[data-st]');if(b){const m=b.dataset.st,M=STM[m],w=+$('#stw_'+m).value,v=+$('#stv_'+m).value;
+    if(!(w>=1&&w<=100)||!(v>0)||(M.mx&&v>M.mx)){flashMsg('راجع الأسبوع والقيمة');return}
+    stSet()[m][String(Math.round(w))]=v;persist();render();return}
+  const s=e.target.closest('[data-stsave]');if(s){const m=s.dataset.stsave;if(!S.settings.std)S.settings.std={};S.settings.std[m]=$('#stp_'+m).value;persist();render();flashMsg('اتحفظ المعيار');return}
+  const r=e.target.closest('[data-streset]');if(r){if(S.settings.std)delete S.settings.std[r.dataset.streset];persist();render();return}
 });
 
 /* جسر المزامنة مع sync.js */
 (function(){let deferred=false;
 window.FARM={get:()=>S,
   quick(list){
-    let seen=[];try{seen=JSON.parse(localStorage.getItem('farm_qseen')||'[]')}catch(e){}
-    list=list.filter(q=>!(q.id&&seen.includes(q.id)));if(!list.length)return;
-    list.forEach(q=>{if(q.id)seen.push(q.id)});try{localStorage.setItem('farm_qseen',JSON.stringify(seen.slice(-300)))}catch(e){}
+    const has_=(r,id)=>(' '+(r.qids||'')+' ').indexOf(' '+id+' ')>=0,mk=(r,id)=>{r.qids=((r.qids||'')+' '+id).trim().split(' ').slice(-40).join(' ')};
+    let n=0;
     list.forEach(q=>{try{
-      if(q.t==='eve'){const hr=+q.hour,hs=+q.house,r=eveRec(q.date,hr,hs,true);
+      if(!q||!q.id)return;
+      if(q.t==='eve'){const hr=+q.hour,hs=+q.house,r=eveRec(q.date,hr,hs,true);if(has_(r,q.id))return;
         ['tin','tout','hum','fans'].forEach(k=>{if(q[k]!==undefined&&q[k]!==null&&String(q[k])!=='')r[k]=String(q[k])});
         if(q.note){r.note=r.note?r.note+' | '+q.note:q.note}
         if(q.fault)r.nfault='1';
-        syncFault(q.date,hr,hs)}
-      else if(q.t==='silo'||q.t==='water'){evxRec(q.date,+q.house,true)[q.t]=String(q.v)}
-      else if(q.t==='heater'){const r=evxRec(q.date,+q.house,true);r.h1=q.h1;if(q.hd){r.hd='1';r.h2=q.h2||q.h1}else{r.hd='';delete r.h2}}
+        mk(r,q.id);n++;syncFault(q.date,hr,hs)}
+      else if(q.t==='silo'||q.t==='water'){const r=evxRec(q.date,+q.house,true);if(has_(r,q.id))return;r[q.t]=String(q.v);mk(r,q.id);n++}
+      else if(q.t==='egg'||q.t==='mort'||q.t==='feed'){
+        const h=+q.house,sd=q.side==='f'?'f':'c',key=(q.t==='mort'&&h===8)?'8h':(h+sd),r=rec(q.date,key,true);if(has_(r,q.id))return;
+        const F=q.t==='egg'?['c1','d1','c2','d2','c3','d3','dbl','defect','broken','dead']:q.t==='mort'?['mortM','mortF','cullM','cullF']:['feed'];
+        F.forEach(k=>{if(q[k]!==undefined&&q[k]!==null&&String(q[k])!=='')r[k]=String(q[k])});
+        if(q.t==='feed'){const rh=rec(q.date,String(h),true);['siloStart','siloEnd'].forEach(k=>{if(q[k]!==undefined&&String(q[k])!=='')rh[k]=String(q[k])})}
+        mk(r,q.id);n++}
+      else if(q.t==='hw'){const rh=rec(q.date,String(+q.house),true);if(has_(rh,q.id))return;
+        ['tmax','tmin','water'].forEach(k=>{if(q[k]!==undefined&&String(q[k])!=='')rh[k]=String(q[k])});mk(rh,q.id);n++}
+      else if(q.t==='heater'){const r=evxRec(q.date,+q.house,true);if(has_(r,q.id))return;r.h1=q.h1;if(q.hd){r.hd='1';r.h2=q.h2||q.h1}else{r.hd='';delete r.h2}mk(r,q.id);n++}
     }catch(e){}});
-    persist();window.FARM.refresh();flashMsg('تم استلام '+list.length+' تسجيل من الفقاعة');
+    if(!n)return;
+    persist();window.FARM.refresh();flashMsg('تم استلام '+n+' تسجيل من الفقاعة');
   },
   refresh(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}load();
     const a=document.activeElement;
@@ -2006,7 +2225,7 @@ try{const N=window.Capacitor&&window.Capacitor.Plugins&&window.Capacitor.Plugins
   if(N&&localStorage.getItem('farm_keep')==='1')N.startKeepAlive();
   if(N&&localStorage.getItem('farm_bubble_auto')==='1')N.ensureBubble().catch(()=>{});
   if(N){const drain=()=>N.drainQuick().then(r=>{try{const a=JSON.parse((r&&r.items)||'[]');if(a.length)window.FARM.quick(a)}catch(e){}}).catch(()=>{});
-    N.addListener('quick',drain);drain();document.addEventListener('visibilitychange',()=>{if(!document.hidden)drain()})}}catch(e){}
+    N.addListener('quick',drain);drain();setInterval(()=>{if(!document.hidden)drain()},15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)drain()})}}catch(e){}
 window.__farmBack=()=>{
   if($('#repView')){closeReport();return true}
   if(history.state&&history.state.sheet){history.back();return true}
